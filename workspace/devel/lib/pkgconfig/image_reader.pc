@@ -1,0 +1,8 @@
+prefix=/home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/devel
+
+Name: image_reader
+Description: Description of image_reader
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 

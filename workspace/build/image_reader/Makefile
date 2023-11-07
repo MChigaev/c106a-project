@@ -137,14 +137,14 @@ test/fast: test
 
 # The main all target
 all: cmake_check_build_system
-	cd /home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/build && $(CMAKE_COMMAND) -E cmake_progress_start /home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/build/CMakeFiles /home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/build/chess_solver/CMakeFiles/progress.marks
-	cd /home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/build && $(MAKE) -f CMakeFiles/Makefile2 chess_solver/all
+	cd /home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/build && $(CMAKE_COMMAND) -E cmake_progress_start /home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/build/CMakeFiles /home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/build/image_reader/CMakeFiles/progress.marks
+	cd /home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/build && $(MAKE) -f CMakeFiles/Makefile2 image_reader/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/build/CMakeFiles 0
 .PHONY : all
 
 # The main clean target
 clean:
-	cd /home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/build && $(MAKE) -f CMakeFiles/Makefile2 chess_solver/clean
+	cd /home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/build && $(MAKE) -f CMakeFiles/Makefile2 image_reader/clean
 .PHONY : clean
 
 # The main clean target
@@ -154,18 +154,33 @@ clean/fast: clean
 
 # Prepare targets for installation.
 preinstall: all
-	cd /home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/build && $(MAKE) -f CMakeFiles/Makefile2 chess_solver/preinstall
+	cd /home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/build && $(MAKE) -f CMakeFiles/Makefile2 image_reader/preinstall
 .PHONY : preinstall
 
 # Prepare targets for installation.
 preinstall/fast:
-	cd /home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/build && $(MAKE) -f CMakeFiles/Makefile2 chess_solver/preinstall
+	cd /home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/build && $(MAKE) -f CMakeFiles/Makefile2 image_reader/preinstall
 .PHONY : preinstall/fast
 
 # clear depends
 depend:
 	cd /home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/build && $(CMAKE_COMMAND) -S$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 1
 .PHONY : depend
+
+# Convenience name for target.
+image_reader/CMakeFiles/_catkin_empty_exported_target.dir/rule:
+	cd /home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/build && $(MAKE) -f CMakeFiles/Makefile2 image_reader/CMakeFiles/_catkin_empty_exported_target.dir/rule
+.PHONY : image_reader/CMakeFiles/_catkin_empty_exported_target.dir/rule
+
+# Convenience name for target.
+_catkin_empty_exported_target: image_reader/CMakeFiles/_catkin_empty_exported_target.dir/rule
+
+.PHONY : _catkin_empty_exported_target
+
+# fast build rule for target.
+_catkin_empty_exported_target/fast:
+	cd /home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/build && $(MAKE) -f image_reader/CMakeFiles/_catkin_empty_exported_target.dir/build.make image_reader/CMakeFiles/_catkin_empty_exported_target.dir/build
+.PHONY : _catkin_empty_exported_target/fast
 
 # Help Target
 help:
@@ -180,6 +195,7 @@ help:
 	@echo "... rebuild_cache"
 	@echo "... edit_cache"
 	@echo "... test"
+	@echo "... _catkin_empty_exported_target"
 .PHONY : help
 
 

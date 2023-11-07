@@ -131,6 +131,7 @@ endif()
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for each subdirectory.
   include("/home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/build/gtest/cmake_install.cmake")
+  include("/home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/build/image_reader/cmake_install.cmake")
   include("/home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/build/ar_track_alvar/ar_track_alvar_msgs/cmake_install.cmake")
   include("/home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/build/ar_track_alvar/ar_track_alvar/cmake_install.cmake")
   include("/home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/build/chess_solver/cmake_install.cmake")

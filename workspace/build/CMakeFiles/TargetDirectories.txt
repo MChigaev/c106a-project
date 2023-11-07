@@ -35,6 +35,14 @@
 /home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/build/gtest/googletest/CMakeFiles/test.dir
 /home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/build/gtest/googletest/CMakeFiles/gtest_main.dir
 /home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/build/gtest/googletest/CMakeFiles/gtest.dir
+/home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/build/image_reader/CMakeFiles/install/strip.dir
+/home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/build/image_reader/CMakeFiles/install/local.dir
+/home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/build/image_reader/CMakeFiles/install.dir
+/home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/build/image_reader/CMakeFiles/list_install_components.dir
+/home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/build/image_reader/CMakeFiles/rebuild_cache.dir
+/home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/build/image_reader/CMakeFiles/edit_cache.dir
+/home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/build/image_reader/CMakeFiles/test.dir
+/home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/build/image_reader/CMakeFiles/_catkin_empty_exported_target.dir
 /home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/build/ar_track_alvar/ar_track_alvar_msgs/CMakeFiles/install/strip.dir
 /home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/build/ar_track_alvar/ar_track_alvar_msgs/CMakeFiles/_ar_track_alvar_msgs_generate_messages_check_deps_AlvarMarker.dir
 /home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/build/ar_track_alvar/ar_track_alvar_msgs/CMakeFiles/list_install_components.dir
@@ -185,4 +193,3 @@
 /home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/build/chess_solver/CMakeFiles/rebuild_cache.dir
 /home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/build/chess_solver/CMakeFiles/edit_cache.dir
 /home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/build/chess_solver/CMakeFiles/test.dir
-/home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/build/chess_solver/CMakeFiles/_catkin_empty_exported_target.dir
