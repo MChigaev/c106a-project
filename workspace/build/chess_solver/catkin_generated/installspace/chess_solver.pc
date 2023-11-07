@@ -1,0 +1,8 @@
+prefix=/home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/install
+
+Name: chess_solver
+Description: Description of chess_solver
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 
