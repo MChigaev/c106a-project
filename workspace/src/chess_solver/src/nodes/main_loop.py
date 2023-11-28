@@ -11,6 +11,8 @@ import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import os 
+import psutil
+import gc
 
 
 # ROS imports
@@ -53,9 +55,9 @@ class Controller:
 		self.Buffer = tf2_ros.Buffer()
 		self.Listener = tf2_ros.TransformListener(self.Buffer)
 		rospy.sleep(1.0)
-	def move(self, angles = [-0.026388671875, -1.3595009765625, -0.079771484375, 1.3575205078125, 0.0011318359375, 0.01973046875, 1.699166015625]):
+	def move(self, angles = [-0.026388671875, -1.3595009765625, -0.079771484375, 1.3575205078125, 0.0011318359375, 0.01973046875, 1.699166015625], max_speed_ratio=0.3):
 		self.traj = MotionTrajectory(limb = self.limb)
-		wpt_opts = MotionWaypointOptions(max_joint_speed_ratio=0.3,
+		wpt_opts = MotionWaypointOptions(max_joint_speed_ratio=max_speed_ratio,
                                          max_joint_accel=0.5)
 		waypoint = MotionWaypoint(options = wpt_opts.to_msg(), limb = self.limb)
 
@@ -100,8 +102,8 @@ class Controller:
 		self.right_gripper.close()
 		rospy.sleep(1.0)
 
-	def ik_service_client(self, target, orientation = [0, 1, 0, 0]):
-		group = MoveGroupCommander("right_arm")
+	def get_target_angles_from_target_position(self, target, orientation):
+		#group = MoveGroupCommander("right_arm")
 		service_name = "ExternalTools/right/PositionKinematicsNode/IKService"
 		ik_service_proxy = rospy.ServiceProxy(service_name, SolvePositionIK)
 		ik_request = SolvePositionIKRequest()
@@ -125,7 +127,7 @@ class Controller:
 		pose_stamped.pose.orientation.y = orientation[1]
 		pose_stamped.pose.orientation.z = orientation[2]
 		pose_stamped.pose.orientation.w = orientation[3]
-		group.set_pose_target(pose_stamped)
+		#group.set_pose_target(pose_stamped)
 
 
 		# Add desired pose for inverse kinematics
@@ -150,14 +152,51 @@ class Controller:
 			rospy.loginfo("\nIK Joint Solution:\n%s", limb_joints)
 			rospy.loginfo("------------------")
 			rospy.loginfo("Response Message:\n%s", response)
-			group.plan()
+			#group.plan()
 			return limb_joints
 		else:
 			rospy.logerr("INVALID POSE - No Valid Joint Solution Found.")
 			rospy.logerr("Result Error %d", response.result_type[0])
 			return False
+	def get_best_angles_from_target_position(self, target, orientation, number_of_trials):
+		angle_sets = []
+		for i in range(number_of_trials):
+			angle_sets.append(list(self.get_target_angles_from_target_position(target, orientation).values()))
+		differences = [np.linalg.norm(np.array(angle_sets[i])-np.array(self.get_angles())) for i in range(number_of_trials)]
+		return angle_sets[np.argmin(differences)]
+
+
 	def get_transform(self, target_frame):
 		return self.Buffer.lookup_transform("base", target_frame, rospy.Time())
+	def move_piece(self, ar_tracker, end_file, end_rank):
+		transform = self.get_transform(ar_tracker)
+		target1 = [transform.transform.translation.x, transform.transform.translation.y, transform.transform.translation.z+0.5]
+		angles1 = self.get_best_angles_from_target_position(target1, [0, 1, 0, 0], 5)
+		self.move(angles1, 0.1)
+
+		target2 = [transform.transform.translation.x, transform.transform.translation.y, transform.transform.translation.z]
+		angles2 = self.get_best_angles_from_target_position(target2, [0, 1, 0, 0], 5)
+		self.move(angles2, 0.1)
+		self.close()
+
+		self.move(angles1, 0.1)
+
+		x, y = get_square_position(end_file, end_rank)
+		z = target1[2]
+
+		target3 = [x, y, z]
+
+		angles3 = self.get_best_angles_from_target_position(target3, [0, 1, 0, 0], 5)
+		self.move(angles3, 0.1)
+
+		target4 = [x, y, target2[2]]
+		angles4 = self.get_best_angles_from_target_position(target4, [0, 1, 0, 0], 5)
+		self.move(angles4, 0.1)
+
+		self.open()
+
+		self.move(angles3, 0.1)
+
 
 	'''
 	def get_all_frames(self):
@@ -167,7 +206,7 @@ class Controller:
 
 
 if __name__ == "__main__":
-	'''
+	
 	control = Controller()
 	#control.move()
 	#print(control.get_angles())
@@ -213,6 +252,7 @@ if __name__ == "__main__":
 
 
 	board = [["" for i in range(8)] for j in range(8)]
+	board_ar_trackers = [["" for i in range(8)] for j in range(8)]
 
 	## get board edges 
 	C1_pos = piece_position_tuples_from_based[32]
@@ -227,6 +267,12 @@ if __name__ == "__main__":
 
 	y_min = min([corner[1] for corner in valid_corners]) #rank 1
 	y_max = max([corner[1] for corner in valid_corners]) #rank 8
+
+	def get_square_position(file, rank):
+		x = ((x_max-x_min)/7)*file + x_min
+		y = ((y_max-y_min)/7)*rank + y_min 
+		return (x,y)
+
 
 	def position_file_rank(position): 
 		if position == None: 
@@ -255,6 +301,7 @@ if __name__ == "__main__":
 			continue
 		print(f"We are stating that piece {piece_name} is at position {(file, rank)}")
 		board[file][rank] = piece_name
+		board_ar_trackers[file][rank] = ar_markers[i]
 
 
 	print(board)
@@ -277,7 +324,7 @@ if __name__ == "__main__":
 			board_string += "/" + row_string
 		return board_string[1:]
 
-
+	
 	position = get_position_string(board) #"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
 	print(f"The board string is {position}")
 	computer_color = 'b'
@@ -285,20 +332,63 @@ if __name__ == "__main__":
 	enpassant = "-"
 	half_moves = 0 #increment on each black move since the last capture has occurred (needed for 50 half-move stalemate rule)
 	full_move_counter = 0 #increment each time computer moves
-
+	
 	def make_fenstring(position, computer_color, castle_rights, enpassant, half_moves, full_move_counter): 
 		return f"{position} {computer_color} {castle_rights} {enpassant} {str(half_moves)} {str(full_move_counter)}"
-
 	fenstring = make_fenstring(position, computer_color, castle_rights, enpassant, half_moves, full_move_counter)
-	'''
 	print(f"current directory: {os.getcwd()}")
+	#memory = psutil.virtual_memory()
+	#print(f"The avaliable memory in bytes is: {memory.avaliable}")
 	
+	for transform in piece_transforms: 
+		del transform
+	gc.collect()
+
 	fenstring = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 2"
-	board = chess.Board(fenstring)
-	engine = chess.engine.SimpleEngine.popen_uci(nodes/stockfish/stockfish-windows-x86-64-avx2.exe)
-	result = engine.play(board, chess.engine.Limit(time=0.1))
-	best_move = result.move
+	rospy.sleep(1.0)
+	#board = chess.Board(fenstring)
+	#engine = chess.engine.SimpleEngine.popen_uci("nodes/stockfish/stockfish-ubuntu-x86-64-avx2")
+	#result = engine.play(board, chess.engine.Limit(time=1.0))
+	best_move = "a2a5"#str(result.move)
 	print("Best move:", best_move)
+
+	def letter_to_number(letter):
+		if letter == "a":
+			return 0
+		elif letter == "b":
+			return 1
+		elif letter == "c":
+			return 2
+		elif letter == "d": 
+			return 3
+		elif letter == "e": 
+			return 4
+		elif letter == "f": 
+			return 5
+		elif letter == "g": 
+			return 6
+		elif letter == "h": 
+			return 7
+
+	start_file = letter_to_number(best_move[0])
+	start_rank = int(best_move[1])-1
+
+	end_file = letter_to_number(best_move[2])
+	end_rank = int(best_move[3])-1
+
+	piece_to_be_moved = board_ar_trackers[start_file][start_rank]
+
+	piece_to_be_captured = board_ar_trackers[end_file][end_rank]
+
+	print(f"The piece being moved is {piece_to_be_moved} and its location is {start_file}, {start_rank}")
+
+
+	if piece_to_be_captured != "": 
+		print(f"The piece being captured is {piece_to_be_captured} and its location is {end_file}, {end_rank}")
+
+		### LOGIC TO REMOVE THIS PIECE
+	control.move_piece(piece_to_be_moved, end_file, end_rank)
+	## Logiv to pick up piece and put it in the new position 
 	
 	
 	# control.move()
