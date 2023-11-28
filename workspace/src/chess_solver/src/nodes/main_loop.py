@@ -24,6 +24,12 @@ from intera_core_msgs.srv import SolvePositionIK, SolvePositionIKRequest
 from std_msgs.msg import Header
 from moveit_commander import MoveGroupCommander
 
+#Chess imports
+# import chess
+# import chess.engine
+stockfish_path = ""
+
+
 
 from intera_motion_interface import (
     MotionTrajectory,
@@ -150,13 +156,100 @@ class Controller:
 			return False
 	def get_transform(self, target_frame):
 		return self.Buffer.lookup_transform("base", target_frame, rospy.Time())
+	def get_all_frames(self):
+		return self.Buffer.allFramesAsYAML(rospy.Time())
 
 
 
 
 if __name__ == "__main__":
 	control = Controller()
+	#control.move()
+	print(control.get_angles())
 	control.open()
+
+	print(control.get_all_frames())
+
+	view_pos_1 = [0.0173525390625, -1.1609453125, -0.0784716796875, 2.230771484375, -0.0127470703125, -1.08743359375, 0.1408017578125]
+	view_pos_2 = None
+
+
+	control.move(view_pos_1)
+
+	ar_markers = [f"ar_marker_{i}" for i in range(36)]
+	piece_names = ["r","n","b","q","k","b","n","r","p","p","p","p","p","p","p","p", "R","N","B","Q","K","B","N","R","P","P","P","P","P","P","P","P", "C1", "C2", "C3", "C4"]
+	piece_transforms = []
+	piece_position_tuples_from_based = []
+
+	for ar_marker in ar_markers: 
+		try: 
+			transform = control.get_transform(ar_marker)
+			piece_transforms.append(transform)
+			piece_position_tuples_from_based.append((transform.transform.translation.x, transform.transform.translation.y))
+		except: 
+			piece_transforms.append(None)
+			piece_position_tuples_from_based.append(None)
+
+	#control.move(view_pos_2)
+
+	for ar_marker in ar_markers: 
+		try: 
+			transform = control.get_transform(ar_marker)
+			piece_transforms.append(transform)
+			piece_position_tuples_from_based.append((transform.transform.translation.x, transform.transform.translation.y))
+		except: 
+			continue
+
+
+	board = [["" for i in range(8)] for j in range(8)]
+
+	## get board edges 
+	C1_pos = piece_position_tuples_from_based[32]
+	C2_pos = piece_position_tuples_from_based[33]
+	C3_pos = piece_position_tuples_from_based[34]
+	C4_pos = piece_position_tuples_from_based[35]
+
+	x_min = min(C1_pos[0], C2_pos[0], C3_pos[0], C4_pos[0]) #file a
+	x_max = max(C1_pos[0], C2_pos[0], C3_pos[0], C4_pos[0]) #file h
+
+	y_min = min(C1_pos[1], C2_pos[1], C3_pos[1], C4_pos[1]) #rank 1
+	y_max = max(C1_pos[1], C2_pos[1], C3_pos[1], C4_pos[1]) #rank 8
+
+	def position_file_rank(position): 
+		if position == None: 
+			return
+		x = position[0]
+		y = position[1]
+
+		file = int(7*(x-x_min)/(x_max-x_min))
+		rank = int(7*(y-y_min)/(y_max-y_min))
+
+		return (file, rank)
+
+
+	##
+
+	for i, piece_position_tuple in enumerate(piece_position_tuples_from_based): 
+		piece_name = piece_names[i]
+		file, rank = position_file_rank(piece_position_tuple)
+		board[file][rank] = piece_name
+
+
+	print(board)
+
+	position = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
+	computer_color = 'b'
+	castle_rights = "KQkq"
+	enpassant = "-"
+	half_moves = 0 #increment on each black move since the last capture has occurred (needed for 50 half-move stalemate rule)
+	full_move_counter = 0 #increment each time computer moves
+
+	def make_fenstring(position, computer_color, castle_rights, enpassant, half_moves, full_move_counter): 
+		return f"{position} {computer_color} {castle_rights} {enpassant} {str(half_moves)} {str(full_move_counter)}"
+
+
+
+
 	# control.move()
 	# transform = control.get_transform("ar_marker_0")
 	# target = [transform.transform.translation.x, transform.transform.translation.y, transform.transform.translation.z]
