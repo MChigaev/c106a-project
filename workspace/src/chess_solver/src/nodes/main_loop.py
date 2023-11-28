@@ -10,6 +10,8 @@ import numpy as np
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
+import os 
+
 
 # ROS imports
 import tf
@@ -25,9 +27,9 @@ from std_msgs.msg import Header
 from moveit_commander import MoveGroupCommander
 
 #Chess imports
-# import chess
-# import chess.engine
-stockfish_path = ""
+import chess
+import chess.engine
+stockfish_path = "stockfish"
 
 
 
@@ -53,7 +55,7 @@ class Controller:
 		rospy.sleep(1.0)
 	def move(self, angles = [-0.026388671875, -1.3595009765625, -0.079771484375, 1.3575205078125, 0.0011318359375, 0.01973046875, 1.699166015625]):
 		self.traj = MotionTrajectory(limb = self.limb)
-		wpt_opts = MotionWaypointOptions(max_joint_speed_ratio=0.1,
+		wpt_opts = MotionWaypointOptions(max_joint_speed_ratio=0.3,
                                          max_joint_accel=0.5)
 		waypoint = MotionWaypoint(options = wpt_opts.to_msg(), limb = self.limb)
 
@@ -156,25 +158,33 @@ class Controller:
 			return False
 	def get_transform(self, target_frame):
 		return self.Buffer.lookup_transform("base", target_frame, rospy.Time())
+
+	'''
 	def get_all_frames(self):
 		return self.Buffer.allFramesAsYAML(rospy.Time())
-
+	'''
 
 
 
 if __name__ == "__main__":
+	'''
 	control = Controller()
 	#control.move()
-	print(control.get_angles())
+	#print(control.get_angles())
 	control.open()
 
-	print(control.get_all_frames())
+	#print(control.get_all_frames())
 
 	view_pos_1 = [0.0173525390625, -1.1609453125, -0.0784716796875, 2.230771484375, -0.0127470703125, -1.08743359375, 0.1408017578125]
-	view_pos_2 = None
+	view_pos_2 = [-0.0225810546875, -0.803453125, -0.0276064453125, 1.164185546875, 0.0672490234375, -0.3893779296875, 3.544720703125]
+
+
+
+
 
 
 	control.move(view_pos_1)
+	rospy.sleep(1.5)
 
 	ar_markers = [f"ar_marker_{i}" for i in range(36)]
 	piece_names = ["r","n","b","q","k","b","n","r","p","p","p","p","p","p","p","p", "R","N","B","Q","K","B","N","R","P","P","P","P","P","P","P","P", "C1", "C2", "C3", "C4"]
@@ -190,7 +200,8 @@ if __name__ == "__main__":
 			piece_transforms.append(None)
 			piece_position_tuples_from_based.append(None)
 
-	#control.move(view_pos_2)
+	control.move(view_pos_2)
+	rospy.sleep(1.5)
 
 	for ar_marker in ar_markers: 
 		try: 
@@ -209,11 +220,13 @@ if __name__ == "__main__":
 	C3_pos = piece_position_tuples_from_based[34]
 	C4_pos = piece_position_tuples_from_based[35]
 
-	x_min = min(C1_pos[0], C2_pos[0], C3_pos[0], C4_pos[0]) #file a
-	x_max = max(C1_pos[0], C2_pos[0], C3_pos[0], C4_pos[0]) #file h
+	valid_corners = [corner for corner in [C1_pos, C2_pos, C3_pos, C4_pos] if corner is not None]
 
-	y_min = min(C1_pos[1], C2_pos[1], C3_pos[1], C4_pos[1]) #rank 1
-	y_max = max(C1_pos[1], C2_pos[1], C3_pos[1], C4_pos[1]) #rank 8
+	x_min = min([corner[0] for corner in valid_corners]) +.07 #file a
+	x_max = max([corner[0] for corner in valid_corners]) -.07 #file h
+
+	y_min = min([corner[1] for corner in valid_corners]) #rank 1
+	y_max = max([corner[1] for corner in valid_corners]) #rank 8
 
 	def position_file_rank(position): 
 		if position == None: 
@@ -221,23 +234,52 @@ if __name__ == "__main__":
 		x = position[0]
 		y = position[1]
 
-		file = int(7*(x-x_min)/(x_max-x_min))
-		rank = int(7*(y-y_min)/(y_max-y_min))
+		file = int(np.round(np.abs((7*(x-x_min)/(x_max-x_min)))))
+		rank = int(np.round(np.abs(7*(y-y_min)/(y_max-y_min))))
+
+		file = min(file, 7)
+		file = max(file, 0)
+		rank = min(rank, 7)
+		rank = max(rank, 0)
 
 		return (file, rank)
 
 
 	##
 
-	for i, piece_position_tuple in enumerate(piece_position_tuples_from_based): 
+	for i, piece_position_tuple in enumerate(piece_position_tuples_from_based[:32]): 
 		piece_name = piece_names[i]
-		file, rank = position_file_rank(piece_position_tuple)
+		try:
+			file, rank = position_file_rank(piece_position_tuple) 
+		except: 
+			continue
+		print(f"We are stating that piece {piece_name} is at position {(file, rank)}")
 		board[file][rank] = piece_name
 
 
 	print(board)
 
-	position = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
+	def get_position_string(board):
+		board_string = ""
+		for row in board: 
+			row_string = ""
+			num_empty = 0
+			for piece in row:
+				if piece == "": 
+					num_empty+=1
+				else: 
+					if num_empty != 0: 
+						row_string += str(num_empty)
+					num_empty = 0
+					row_string += piece
+			if num_empty != 0: 
+				row_string += str(num_empty)
+			board_string += "/" + row_string
+		return board_string[1:]
+
+
+	position = get_position_string(board) #"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
+	print(f"The board string is {position}")
 	computer_color = 'b'
 	castle_rights = "KQkq"
 	enpassant = "-"
@@ -247,9 +289,18 @@ if __name__ == "__main__":
 	def make_fenstring(position, computer_color, castle_rights, enpassant, half_moves, full_move_counter): 
 		return f"{position} {computer_color} {castle_rights} {enpassant} {str(half_moves)} {str(full_move_counter)}"
 
-
-
-
+	fenstring = make_fenstring(position, computer_color, castle_rights, enpassant, half_moves, full_move_counter)
+	'''
+	print(f"current directory: {os.getcwd()}")
+	
+	fenstring = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 2"
+	board = chess.Board(fenstring)
+	engine = chess.engine.SimpleEngine.popen_uci(nodes/stockfish/stockfish-windows-x86-64-avx2.exe)
+	result = engine.play(board, chess.engine.Limit(time=0.1))
+	best_move = result.move
+	print("Best move:", best_move)
+	
+	
 	# control.move()
 	# transform = control.get_transform("ar_marker_0")
 	# target = [transform.transform.translation.x, transform.transform.translation.y, transform.transform.translation.z]
