@@ -169,14 +169,18 @@ class Controller:
 	def get_transform(self, target_frame):
 		return self.Buffer.lookup_transform("base", target_frame, rospy.Time())
 	def move_piece(self, ar_tracker, end_file, end_rank):
+		offsetx = -0.026924
+		offsety = 0.026772
+		offsetz = 0.08
 		transform = self.get_transform(ar_tracker)
-		target1 = [transform.transform.translation.x, transform.transform.translation.y, transform.transform.translation.z+0.5]
-		angles1 = self.get_best_angles_from_target_position(target1, [0, 1, 0, 0], 5)
+		target1 = [transform.transform.translation.x+offsetx, transform.transform.translation.y+offsety, transform.transform.translation.z+0.25]
+		angles1 = self.get_best_angles_from_target_position(target1, [0, 1, 0, 0], 20)
 		self.move(angles1, 0.1)
 
-		target2 = [transform.transform.translation.x, transform.transform.translation.y, transform.transform.translation.z]
-		angles2 = self.get_best_angles_from_target_position(target2, [0, 1, 0, 0], 5)
+		target2 = [transform.transform.translation.x+offsetx, transform.transform.translation.y+offsety, transform.transform.translation.z+offsetz]
+		angles2 = self.get_best_angles_from_target_position(target2, [0, 1, 0, 0], 20)
 		self.move(angles2, 0.1)
+		rospy.sleep(1.0)
 		self.close()
 
 		self.move(angles1, 0.1)
@@ -184,13 +188,13 @@ class Controller:
 		x, y = get_square_position(end_file, end_rank)
 		z = target1[2]
 
-		target3 = [x, y, z]
+		target3 = [x+offsetx, y+offsety, z]
 
-		angles3 = self.get_best_angles_from_target_position(target3, [0, 1, 0, 0], 5)
+		angles3 = self.get_best_angles_from_target_position(target3, [0, 1, 0, 0], 20)
 		self.move(angles3, 0.1)
 
-		target4 = [x, y, target2[2]]
-		angles4 = self.get_best_angles_from_target_position(target4, [0, 1, 0, 0], 5)
+		target4 = [x+offsetx, y+offsety, target2[2]]
+		angles4 = self.get_best_angles_from_target_position(target4, [0, 1, 0, 0], 20)
 		self.move(angles4, 0.1)
 
 		self.open()
@@ -223,50 +227,52 @@ if __name__ == "__main__":
 
 
 	control.move(view_pos_1)
-	rospy.sleep(1.5)
+	rospy.sleep(2.0)
 
 	ar_markers = [f"ar_marker_{i}" for i in range(36)]
 	piece_names = ["r","n","b","q","k","b","n","r","p","p","p","p","p","p","p","p", "R","N","B","Q","K","B","N","R","P","P","P","P","P","P","P","P", "C1", "C2", "C3", "C4"]
-	piece_transforms = []
-	piece_position_tuples_from_based = []
+	piece_transforms = [None for i in range(36)]
+	piece_position_tuples_from_based = [None for i in range(36)]
 
-	for ar_marker in ar_markers: 
+	for i in range(36): 
 		try: 
-			transform = control.get_transform(ar_marker)
-			piece_transforms.append(transform)
-			piece_position_tuples_from_based.append((transform.transform.translation.x, transform.transform.translation.y))
-		except: 
-			piece_transforms.append(None)
-			piece_position_tuples_from_based.append(None)
-
-	control.move(view_pos_2)
-	rospy.sleep(1.5)
-
-	for ar_marker in ar_markers: 
-		try: 
-			transform = control.get_transform(ar_marker)
-			piece_transforms.append(transform)
-			piece_position_tuples_from_based.append((transform.transform.translation.x, transform.transform.translation.y))
+			transform = control.get_transform(ar_markers[i])
+			piece_transforms[i] = transform
+			piece_position_tuples_from_based[i] = (transform.transform.translation.x, transform.transform.translation.y)
 		except: 
 			continue
 
+	control.move(view_pos_2)
+	rospy.sleep(3.0)
+
+	for i in range(36):
+		try: 
+			transform = control.get_transform(ar_markers[i])
+			piece_transforms[i] = transform
+			piece_position_tuples_from_based[i] = (transform.transform.translation.x, transform.transform.translation.y)
+		except: 
+			continue
 
 	board = [["" for i in range(8)] for j in range(8)]
 	board_ar_trackers = [["" for i in range(8)] for j in range(8)]
 
 	## get board edges 
 	C1_pos = piece_position_tuples_from_based[32]
-	C2_pos = piece_position_tuples_from_based[33]
-	C3_pos = piece_position_tuples_from_based[34]
+	# C2_pos = piece_position_tuples_from_based[33]
+	# C3_pos = piece_position_tuples_from_based[34]
 	C4_pos = piece_position_tuples_from_based[35]
 
-	valid_corners = [corner for corner in [C1_pos, C2_pos, C3_pos, C4_pos] if corner is not None]
+	# valid_corners = [corner for corner in [C1_pos, C2_pos, C3_pos, C4_pos] if corner is not None]
 
-	x_min = min([corner[0] for corner in valid_corners]) +.07 #file a
-	x_max = max([corner[0] for corner in valid_corners]) -.07 #file h
+	# x_min = min([corner[0] for corner in valid_corners]) +.07 #file a
+	x_min = C1_pos[0] + 0.07
+	# x_max = max([corner[0] for corner in valid_corners]) -.07 #file h
+	x_max = C4_pos[0] - 0.07
 
-	y_min = min([corner[1] for corner in valid_corners]) #rank 1
-	y_max = max([corner[1] for corner in valid_corners]) #rank 8
+	# y_min = min([corner[1] for corner in valid_corners]) #rank 1
+	y_min = C1_pos[1] + 0.07
+	# y_max = max([corner[1] for corner in valid_corners]) #rank 8
+	y_max = C4_pos[1] - 0.07
 
 	def get_square_position(file, rank):
 		x = ((x_max-x_min)/7)*file + x_min
@@ -349,32 +355,32 @@ if __name__ == "__main__":
 	#board = chess.Board(fenstring)
 	#engine = chess.engine.SimpleEngine.popen_uci("nodes/stockfish/stockfish-ubuntu-x86-64-avx2")
 	#result = engine.play(board, chess.engine.Limit(time=1.0))
-	best_move = "a2a5"#str(result.move)
+	best_move = "d2d4"#str(result.move)
 	print("Best move:", best_move)
 
 	def letter_to_number(letter):
 		if letter == "a":
-			return 0
-		elif letter == "b":
-			return 1
-		elif letter == "c":
-			return 2
-		elif letter == "d": 
-			return 3
-		elif letter == "e": 
-			return 4
-		elif letter == "f": 
-			return 5
-		elif letter == "g": 
-			return 6
-		elif letter == "h": 
 			return 7
+		elif letter == "b":
+			return 6
+		elif letter == "c":
+			return 5
+		elif letter == "d": 
+			return 4
+		elif letter == "e": 
+			return 3
+		elif letter == "f": 
+			return 2
+		elif letter == "g": 
+			return 1
+		elif letter == "h": 
+			return 0
 
 	start_file = letter_to_number(best_move[0])
-	start_rank = int(best_move[1])-1
+	start_rank = 8-int(best_move[1])
 
 	end_file = letter_to_number(best_move[2])
-	end_rank = int(best_move[3])-1
+	end_rank = 8-int(best_move[3])
 
 	piece_to_be_moved = board_ar_trackers[start_file][start_rank]
 
