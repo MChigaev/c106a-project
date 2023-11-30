@@ -102,7 +102,7 @@ class Controller:
 		self.right_gripper.close()
 		rospy.sleep(1.0)
 
-	def get_target_angles_from_target_position(self, target, orientation):
+	def get_target_angles_from_target_position(self, target, orientation, frame):
 		#group = MoveGroupCommander("right_arm")
 		service_name = "ExternalTools/right/PositionKinematicsNode/IKService"
 		ik_service_proxy = rospy.ServiceProxy(service_name, SolvePositionIK)
@@ -133,7 +133,7 @@ class Controller:
 		# Add desired pose for inverse kinematics
 		ik_request.pose_stamp.append(pose_stamped)
 		# Request inverse kinematics from base to "right_hand" link
-		ik_request.tip_names.append('right_hand')
+		ik_request.tip_names.append(frame)
 
 		rospy.loginfo("Running Simple IK Service Client example.")
 
@@ -158,10 +158,10 @@ class Controller:
 			rospy.logerr("INVALID POSE - No Valid Joint Solution Found.")
 			rospy.logerr("Result Error %d", response.result_type[0])
 			return False
-	def get_best_angles_from_target_position(self, target, orientation, number_of_trials):
+	def get_best_angles_from_target_position(self, target, orientation, number_of_trials, frame="right_hand"):
 		angle_sets = []
 		for i in range(number_of_trials):
-			angle_sets.append(list(self.get_target_angles_from_target_position(target, orientation).values()))
+			angle_sets.append(list(self.get_target_angles_from_target_position(target, orientation, frame).values()))
 		differences = [np.linalg.norm(np.array(angle_sets[i])-np.array(self.get_angles())) for i in range(number_of_trials)]
 		return angle_sets[np.argmin(differences)]
 
@@ -169,9 +169,9 @@ class Controller:
 	def get_transform(self, target_frame):
 		return self.Buffer.lookup_transform("base", target_frame, rospy.Time())
 	def move_piece(self, ar_tracker, end_file, end_rank):
-		offsetx = -0.026924
-		offsety = 0.026772
-		offsetz = 0.08
+		offsetx = 0#-0.026924
+		offsety = 0#0.026772
+		offsetz = 0.04
 		transform = self.get_transform(ar_tracker)
 		target1 = [transform.transform.translation.x+offsetx, transform.transform.translation.y+offsety, transform.transform.translation.z+0.25]
 		angles1 = self.get_best_angles_from_target_position(target1, [0, 1, 0, 0], 20)
@@ -213,13 +213,17 @@ if __name__ == "__main__":
 	
 	control = Controller()
 	#control.move()
-	#print(control.get_angles())
+	# print(control.get_angles())
 	control.open()
 
 	#print(control.get_all_frames())
 
-	view_pos_1 = [0.0173525390625, -1.1609453125, -0.0784716796875, 2.230771484375, -0.0127470703125, -1.08743359375, 0.1408017578125]
-	view_pos_2 = [-0.0225810546875, -0.803453125, -0.0276064453125, 1.164185546875, 0.0672490234375, -0.3893779296875, 3.544720703125]
+	# view_pos_1 = [0.0173525390625, -1.1609453125, -0.0784716796875, 2.230771484375, -0.0127470703125, -1.08743359375, 0.1408017578125]
+	view_pos_1 = [0.048298828125, -1.427421875, -0.174884765625, 2.087876953125, -0.08063671875, -0.6547734375, 0.141345703125]
+	# view_pos_1 = [0.6096, 0.1524, 0.508] # x, y, z from base
+	# view_pos_2 = [-0.0225810546875, -0.803453125, -0.0276064453125, 1.164185546875, 0.0672490234375, -0.3893779296875, 3.544720703125] # angles
+	view_pos_2 = [0.0845869140625, -0.73539453125, -0.3087646484375, 0.8947099609375, 0.1585498046875, -0.1894892578125, 3.543546875]
+
 
 
 
@@ -227,6 +231,8 @@ if __name__ == "__main__":
 
 
 	control.move(view_pos_1)
+	# angles1 = control.get_best_angles_from_target_position(view_pos_1, [1, 0, 0, 1.52], 50, "right_hand_camera")
+	# control.move(angles1)
 	rospy.sleep(2.0)
 
 	ar_markers = [f"ar_marker_{i}" for i in range(36)]
@@ -255,21 +261,23 @@ if __name__ == "__main__":
 
 	board = [["" for i in range(8)] for j in range(8)]
 	board_ar_trackers = [["" for i in range(8)] for j in range(8)]
+	board_transforms = [[None for i in range(8)] for j in range(8)]
 
 	## get board edges 
 	C1_pos = piece_position_tuples_from_based[32]
 	C2_pos = piece_position_tuples_from_based[33]
 	C3_pos = piece_position_tuples_from_based[34]
 	C4_pos = piece_position_tuples_from_based[35]
+	print((C1_pos, C2_pos, C3_pos, C4_pos))
 
 
 	# valid_corners = [corner for corner in [C1_pos, C2_pos, C3_pos, C4_pos] if corner is not None]
 
 	x_mins = [value[0] for value in [C1_pos, C3_pos] if value is not None]
-	x_min = np.average(x_mins)
+	x_min = np.min(x_mins)
 
 	x_maxs = [value[0] for value in [C2_pos, C4_pos] if value is not None]
-	x_max = np.average(x_maxs)
+	x_max = np.min(x_maxs)
 
 	# x_min = min([corner[0] for corner in valid_corners]) +.07 #file a
 	# x_min = ((C1_pos[0] + 0.07) + (C3_pos[0] + 0.07))/2
@@ -279,15 +287,17 @@ if __name__ == "__main__":
 	# y_min = min([corner[1] for corner in valid_corners]) #rank 1
 	# y_min = C1_pos[1] + 0.07
 	y_mins = [value[1] for value in [C1_pos, C2_pos] if value is not None]
-	y_min = np.average(y_mins)
+	y_min = np.min(y_mins)
 	# y_max = max([corner[1] for corner in valid_corners]) #rank 8
 	# y_max = C4_pos[1] - 0.07
 	y_maxs = [value[1] for value in [C3_pos, C4_pos] if value is not None]
-	y_max = np.average(y_maxs)
+	y_max = np.min(y_maxs)
+
+	print((x_min, x_max, y_min, y_max))
 
 	def get_square_position(file, rank):
-		x = ((x_max-x_min)/7)*file + x_min
-		y = ((y_max-y_min)/7)*rank + y_min 
+		x = ((x_max-x_min)/8)*file + x_min
+		y = ((y_max-y_min)/8)*rank + y_min + 0.00762
 		return (x,y)
 
 
@@ -298,8 +308,10 @@ if __name__ == "__main__":
 		y = position[1]
 
 		file = int(np.round(np.abs((7*(x-x_min)/(x_max-x_min)))))
-		rank = int(np.round(np.abs(7*(y-y_min)/(y_max-y_min))))
+		rank = int(np.round(np.abs(7*(y-y_min)/(y_max-y_min)))) 
 
+		print(7*(x-x_min)/(x_max-x_min))
+		print(7*(y-y_min)/(y_max-y_min))
 		file = min(file, 7)
 		file = max(file, 0)
 		rank = min(rank, 7)
@@ -319,6 +331,7 @@ if __name__ == "__main__":
 		print(f"We are stating that piece {piece_name} is at position {(file, rank)}")
 		board[file][rank] = piece_name
 		board_ar_trackers[file][rank] = ar_markers[i]
+		board_transforms[file][rank] = piece_transforms[i]
 
 
 	print(board)
@@ -366,7 +379,7 @@ if __name__ == "__main__":
 	#board = chess.Board(fenstring)
 	#engine = chess.engine.SimpleEngine.popen_uci("nodes/stockfish/stockfish-ubuntu-x86-64-avx2")
 	#result = engine.play(board, chess.engine.Limit(time=1.0))
-	best_move = "d2d4"#str(result.move)
+	best_move = "d2g5"#str(result.move)
 	print("Best move:", best_move)
 
 	def letter_to_number(letter):
