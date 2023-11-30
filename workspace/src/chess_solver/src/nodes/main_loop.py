@@ -193,7 +193,7 @@ class Controller:
 		angles3 = self.get_best_angles_from_target_position(target3, [0, 1, 0, 0], 20)
 		self.move(angles3, 0.1)
 
-		target4 = [x+offsetx, y+offsety, target2[2]]
+		target4 = [x, y, target2[2]]
 		angles4 = self.get_best_angles_from_target_position(target4, [0, 1, 0, 0], 20)
 		self.move(angles4, 0.1)
 
@@ -258,21 +258,32 @@ if __name__ == "__main__":
 
 	## get board edges 
 	C1_pos = piece_position_tuples_from_based[32]
-	# C2_pos = piece_position_tuples_from_based[33]
-	# C3_pos = piece_position_tuples_from_based[34]
+	C2_pos = piece_position_tuples_from_based[33]
+	C3_pos = piece_position_tuples_from_based[34]
 	C4_pos = piece_position_tuples_from_based[35]
+
 
 	# valid_corners = [corner for corner in [C1_pos, C2_pos, C3_pos, C4_pos] if corner is not None]
 
+	x_mins = [value[0] for value in [C1_pos, C3_pos] if value is not None]
+	x_min = np.average(x_mins)
+
+	x_maxs = [value[0] for value in [C2_pos, C4_pos] if value is not None]
+	x_max = np.average(x_maxs)
+
 	# x_min = min([corner[0] for corner in valid_corners]) +.07 #file a
-	x_min = C1_pos[0] + 0.07
+	# x_min = ((C1_pos[0] + 0.07) + (C3_pos[0] + 0.07))/2
 	# x_max = max([corner[0] for corner in valid_corners]) -.07 #file h
-	x_max = C4_pos[0] - 0.07
+	# x_max = C4_pos[0] - 0.07
 
 	# y_min = min([corner[1] for corner in valid_corners]) #rank 1
-	y_min = C1_pos[1] + 0.07
+	# y_min = C1_pos[1] + 0.07
+	y_mins = [value[1] for value in [C1_pos, C2_pos] if value is not None]
+	y_min = np.average(y_mins)
 	# y_max = max([corner[1] for corner in valid_corners]) #rank 8
-	y_max = C4_pos[1] - 0.07
+	# y_max = C4_pos[1] - 0.07
+	y_maxs = [value[1] for value in [C3_pos, C4_pos] if value is not None]
+	y_max = np.average(y_maxs)
 
 	def get_square_position(file, rank):
 		x = ((x_max-x_min)/7)*file + x_min
