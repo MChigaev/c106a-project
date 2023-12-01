@@ -168,12 +168,15 @@ class Controller:
 
 	def get_transform(self, target_frame):
 		return self.Buffer.lookup_transform("base", target_frame, rospy.Time())
-	def move_piece(self, ar_tracker, end_file, end_rank):
+	def move_piece(self, ar_tracker, end_file, end_rank, start_pos, use_derived_position=True):
 		offsetx = 0#-0.026924
 		offsety = 0#0.026772
 		offsetz = 0.04
 		transform = self.get_transform(ar_tracker)
 		target1 = [transform.transform.translation.x+offsetx, transform.transform.translation.y+offsety, transform.transform.translation.z+0.25]
+		if use_derived_position: 
+			target1[0] = start_pos[0]
+			target1[1] = start_pos[1]
 		angles1 = self.get_best_angles_from_target_position(target1, [0, 1, 0, 0], 20)
 		self.move(angles1, 0.1)
 
@@ -230,6 +233,7 @@ if __name__ == "__main__":
 
 
 
+
 	control.move(view_pos_1)
 	# angles1 = control.get_best_angles_from_target_position(view_pos_1, [1, 0, 0, 1.52], 50, "right_hand_camera")
 	# control.move(angles1)
@@ -238,13 +242,18 @@ if __name__ == "__main__":
 	ar_markers = [f"ar_marker_{i}" for i in range(36)]
 	piece_names = ["r","n","b","q","k","b","n","r","p","p","p","p","p","p","p","p", "R","N","B","Q","K","B","N","R","P","P","P","P","P","P","P","P", "C1", "C2", "C3", "C4"]
 	piece_transforms = [None for i in range(36)]
+	num_times_scanned = [None for i in range(36)]
 	piece_position_tuples_from_based = [None for i in range(36)]
 
 	for i in range(36): 
 		try: 
 			transform = control.get_transform(ar_markers[i])
 			piece_transforms[i] = transform
-			piece_position_tuples_from_based[i] = (transform.transform.translation.x, transform.transform.translation.y)
+			if num_times_scanned[i] == 0: 
+				piece_position_tuples_from_based[i] = (transform.transform.translation.x, transform.transform.translation.y)
+			else: 
+				piece_position_tuples_from_based[i][0] = (num_times_scanned[i]/(num_times_scanned[i]+1))*piece_position_tuples_from_based[i][0] + (1/(num_times_scanned[i]+1))*transform.transform.translation.x
+			num_times_scanned[i]+=1
 		except: 
 			continue
 
@@ -256,8 +265,12 @@ if __name__ == "__main__":
 			transform = control.get_transform(ar_markers[i])
 			piece_transforms[i] = transform
 			piece_position_tuples_from_based[i] = (transform.transform.translation.x, transform.transform.translation.y)
+			num_times_scanned[i]+=1
 		except: 
 			continue
+
+
+
 
 	board = [["" for i in range(8)] for j in range(8)]
 	board_ar_trackers = [["" for i in range(8)] for j in range(8)]
@@ -274,10 +287,10 @@ if __name__ == "__main__":
 	# valid_corners = [corner for corner in [C1_pos, C2_pos, C3_pos, C4_pos] if corner is not None]
 
 	x_mins = [value[0] for value in [C1_pos, C3_pos] if value is not None]
-	x_min = np.min(x_mins)
+	x_min = np.average(x_mins)
 
 	x_maxs = [value[0] for value in [C2_pos, C4_pos] if value is not None]
-	x_max = np.min(x_maxs)
+	x_max = np.average(x_maxs)
 
 	# x_min = min([corner[0] for corner in valid_corners]) +.07 #file a
 	# x_min = ((C1_pos[0] + 0.07) + (C3_pos[0] + 0.07))/2
@@ -287,17 +300,17 @@ if __name__ == "__main__":
 	# y_min = min([corner[1] for corner in valid_corners]) #rank 1
 	# y_min = C1_pos[1] + 0.07
 	y_mins = [value[1] for value in [C1_pos, C2_pos] if value is not None]
-	y_min = np.min(y_mins)
+	y_min = np.average(y_mins) + 0.07
 	# y_max = max([corner[1] for corner in valid_corners]) #rank 8
 	# y_max = C4_pos[1] - 0.07
 	y_maxs = [value[1] for value in [C3_pos, C4_pos] if value is not None]
-	y_max = np.min(y_maxs)
+	y_max = np.average(y_maxs) -0.07
 
 	print((x_min, x_max, y_min, y_max))
 
 	def get_square_position(file, rank):
-		x = ((x_max-x_min)/8)*file + x_min
-		y = ((y_max-y_min)/8)*rank + y_min + 0.00762
+		x = ((x_max-x_min)/7)*file + x_min
+		y = ((y_max-y_min)/7)*rank + y_min #+ 0.0762
 		return (x,y)
 
 
@@ -307,7 +320,10 @@ if __name__ == "__main__":
 		x = position[0]
 		y = position[1]
 
-		file = int(np.round(np.abs((7*(x-x_min)/(x_max-x_min)))))
+		x_board_length = x_max-x_min
+		position_along_x_dimension_of_board =x-x_min
+
+		file = int(np.round(np.abs((7*(position_along_x_dimension_of_board)/(x_board_length)))))
 		rank = int(np.round(np.abs(7*(y-y_min)/(y_max-y_min)))) 
 
 		print(7*(x-x_min)/(x_max-x_min))
@@ -379,7 +395,7 @@ if __name__ == "__main__":
 	#board = chess.Board(fenstring)
 	#engine = chess.engine.SimpleEngine.popen_uci("nodes/stockfish/stockfish-ubuntu-x86-64-avx2")
 	#result = engine.play(board, chess.engine.Limit(time=1.0))
-	best_move = "d2g5"#str(result.move)
+	best_move = "g5d2"#str(result.move)
 	print("Best move:", best_move)
 
 	def letter_to_number(letter):
@@ -403,6 +419,8 @@ if __name__ == "__main__":
 	start_file = letter_to_number(best_move[0])
 	start_rank = 8-int(best_move[1])
 
+	start_pos_x, start_pos_y = get_square_position(start_file, start_rank)
+
 	end_file = letter_to_number(best_move[2])
 	end_rank = 8-int(best_move[3])
 
@@ -417,7 +435,7 @@ if __name__ == "__main__":
 		print(f"The piece being captured is {piece_to_be_captured} and its location is {end_file}, {end_rank}")
 
 		### LOGIC TO REMOVE THIS PIECE
-	control.move_piece(piece_to_be_moved, end_file, end_rank)
+	control.move_piece(piece_to_be_moved, end_file, end_rank, start_pos=(start_pos_x,start_pos_y))
 	## Logiv to pick up piece and put it in the new position 
 	
 	
