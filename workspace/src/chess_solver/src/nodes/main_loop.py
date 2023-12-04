@@ -44,6 +44,166 @@ from intera_interface import Limb
 
 NUM_JOINTS = 7
 
+PAWN_TABLE = [
+    0,  0,  0,  0,  0,  0,  0,  0,
+    50, 50, 50, 50, 50, 50, 50, 50,
+    10, 10, 20, 30, 30, 20, 10, 10,
+    5,  5, 10, 25, 25, 10,  5,  5,
+    0,  0,  0, 20, 20,  0,  0,  0,
+    5, -5,-10,  0,  0,-10, -5,  5,
+    5, 10, 10,-20,-20, 10, 10,  5,
+    0,  0,  0,  0,  0,  0,  0,  0
+]
+
+KNIGHTS_TABLE = [
+    -50,-40,-30,-30,-30,-30,-40,-50,
+    -40,-20,  0,  0,  0,  0,-20,-40,
+    -30,  0, 10, 15, 15, 10,  0,-30,
+    -30,  5, 15, 20, 20, 15,  5,-30,
+    -30,  0, 15, 20, 20, 15,  0,-30,
+    -30,  5, 10, 15, 15, 10,  5,-30,
+    -40,-20,  0,  5,  5,  0,-20,-40,
+    -50,-40,-30,-30,-30,-30,-40,-50
+]
+
+BISHOPS_TABLE = [
+    -20,-10,-10,-10,-10,-10,-10,-20,
+    -10,  0,  0,  0,  0,  0,  0,-10,
+    -10,  0,  5, 10, 10,  5,  0,-10,
+    -10,  5,  5, 10, 10,  5,  5,-10,
+    -10,  0, 10, 10, 10, 10,  0,-10,
+    -10, 10, 10, 10, 10, 10, 10,-10,
+    -10,  5,  0,  0,  0,  0,  5,-10,
+    -20,-10,-10,-10,-10,-10,-10,-20
+]
+
+ROOKS_TABLE = [
+    0,  0,  0,  0,  0,  0,  0,  0,
+    5, 10, 10, 10, 10, 10, 10,  5,
+    -5,  0,  0,  0,  0,  0,  0, -5,
+    -5,  0,  0,  0,  0,  0,  0, -5,
+    -5,  0,  0,  0,  0,  0,  0, -5,
+    -5,  0,  0,  0,  0,  0,  0, -5,
+    -5,  0,  0,  0,  0,  0,  0, -5,
+    0,  0,  0,  5,  5,  0,  0,  0
+]
+
+QUEENS_TABLE = [
+    -20,-10,-10, -5, -5,-10,-10,-20,
+    -10,  0,  0,  0,  0,  0,  0,-10,
+    -10,  0,  5,  5,  5,  5,  0,-10,
+    -5,  0,  5,  5,  5,  5,  0, -5,
+    0,  0,  5,  5,  5,  5,  0, -5,
+    -10,  5,  5,  5,  5,  5,  0,-10,
+    -10,  0,  5,  0,  0,  0,  0,-10,
+    -20,-10,-10, -5, -5,-10,-10,-20
+]
+
+KINGS_TABLE = [
+    -50,-40,-30,-20,-20,-30,-40,-50,
+    -30,-20,-10,  0,  0,-10,-20,-30,
+    -30,-10, 20, 30, 30, 20,-10,-30,
+    -30,-10, 30, 40, 40, 30,-10,-30,
+    -30,-10, 30, 40, 40, 30,-10,-30,
+    -30,-10, 20, 30, 30, 20,-10,-30,
+    -30,-30,  0,  0,  0,  0,-30,-30,
+    -50,-30,-30,-30,-30,-30,-30,-50
+]
+
+def determine_best_move(board, is_white, depth = 3):
+    """Given a board, determines the best move.
+
+    Args:
+        board (chess.Board): A chess board.
+        is_white (bool): Whether the particular move is for white or black.
+        depth (int, optional): The number of moves looked ahead.
+
+    Returns:
+        chess.Move: The best predicated move.
+    """
+
+    best_move = -100000 if is_white else 100000
+    best_final = None
+    for move in board.legal_moves:
+        board.push(move)
+        value = _minimax_helper(depth - 1, board, -10000, 10000, not is_white)
+        board.pop()
+        if (is_white and value > best_move) or (not is_white and value < best_move):
+            best_move = value
+            best_final = move
+    return best_final
+
+def _minimax_helper(depth, board, alpha, beta, is_maximizing):
+    if depth <= 0 or board.is_game_over():
+        return evaluate(board)
+
+    if is_maximizing:
+        best_move = -100000
+        for move in board.legal_moves:
+            board.push(move)
+            value = _minimax_helper(depth - 1, board, alpha, beta, False)
+            board.pop()
+            best_move = max(best_move, value)
+            alpha = max(alpha, best_move)
+            if beta <= alpha:
+                break
+        return best_move
+    else:
+        best_move = 100000
+        for move in board.legal_moves:
+            board.push(move)
+            value = _minimax_helper(depth - 1, board, alpha, beta, True)
+            board.pop()
+            best_move = min(best_move, value)
+            beta = min(beta, best_move)
+            if beta <= alpha:
+                break
+        return best_move
+def evaluate(board):
+    """
+    Given a particular board, evaluates it and gives it a score.
+    A higher score indicates it is better for white.
+    A lower score indicates it is better for black.
+
+    Args:
+        board (chess.Board): A chess board.
+
+    Returns:
+        int: A score indicating the state of the board (higher is good for white, lower is good for black)
+    """    
+
+    boardvalue = 0
+    
+    wp = len(board.pieces(chess.PAWN, chess.WHITE))
+    bp = len(board.pieces(chess.PAWN, chess.BLACK))
+    wn = len(board.pieces(chess.KNIGHT, chess.WHITE))
+    bn = len(board.pieces(chess.KNIGHT, chess.BLACK))
+    wb = len(board.pieces(chess.BISHOP, chess.WHITE))
+    bb = len(board.pieces(chess.BISHOP, chess.BLACK))
+    wr = len(board.pieces(chess.ROOK, chess.WHITE))
+    br = len(board.pieces(chess.ROOK, chess.BLACK))
+    wq = len(board.pieces(chess.QUEEN, chess.WHITE))
+    bq = len(board.pieces(chess.QUEEN, chess.BLACK))
+    
+    material = 100 * (wp - bp) + 300 * (wn - bn) + 300 * (wb - bb) + 500 * (wr - br) + 900 * (wq - bq)
+    
+    pawn_sum = sum([PAWN_TABLE[i] for i in board.pieces(chess.PAWN, chess.WHITE)])
+    pawn_sum = pawn_sum + sum([-PAWN_TABLE[chess.square_mirror(i)] for i in board.pieces(chess.PAWN, chess.BLACK)])
+    knight_sum = sum([KNIGHTS_TABLE[i] for i in board.pieces(chess.KNIGHT, chess.WHITE)])
+    knight_sum = knight_sum + sum([-KNIGHTS_TABLE[chess.square_mirror(i)] for i in board.pieces(chess.KNIGHT, chess.BLACK)])
+    bishop_sum = sum([BISHOPS_TABLE[i] for i in board.pieces(chess.BISHOP, chess.WHITE)])
+    bishop_sum = bishop_sum + sum([-BISHOPS_TABLE[chess.square_mirror(i)] for i in board.pieces(chess.BISHOP, chess.BLACK)])
+    rook_sum = sum([ROOKS_TABLE[i] for i in board.pieces(chess.ROOK, chess.WHITE)]) 
+    rook_sum = rook_sum + sum([-ROOKS_TABLE[chess.square_mirror(i)] for i in board.pieces(chess.ROOK, chess.BLACK)])
+    queens_sum = sum([QUEENS_TABLE[i] for i in board.pieces(chess.QUEEN, chess.WHITE)]) 
+    queens_sum = queens_sum + sum([-QUEENS_TABLE[chess.square_mirror(i)] for i in board.pieces(chess.QUEEN, chess.BLACK)])
+    kings_sum = sum([KINGS_TABLE[i] for i in board.pieces(chess.KING, chess.WHITE)]) 
+    kings_sum = kings_sum + sum([-KINGS_TABLE[chess.square_mirror(i)] for i in board.pieces(chess.KING, chess.BLACK)])
+    
+    boardvalue = material + pawn_sum + knight_sum + bishop_sum + rook_sum + queens_sum + kings_sum
+    
+    return boardvalue
+
 class Controller:
 	def __init__(self):
 		rospy.init_node('main_execution_loop')
@@ -51,6 +211,7 @@ class Controller:
 		self._tf_buffer = tf2_ros.Buffer()
 		self._tf_listener = tf2_ros.TransformListener(self._tf_buffer)
 		self.right_gripper = robot_gripper.Gripper("right_gripper")
+		#self.right_gripper = robot_gripper.Gripper("")
 		self.right_gripper.calibrate()
 		self.Buffer = tf2_ros.Buffer()
 		self.Listener = tf2_ros.TransformListener(self.Buffer)
@@ -114,6 +275,7 @@ class Controller:
 		pose_stamped.header = header
 
 		# Set end effector position: YOUR CODE HERE
+		#print(target)
 		x = float(target[0])
 		y = float(target[1])
 		z = float(target[2])
@@ -141,27 +303,30 @@ class Controller:
 			rospy.wait_for_service(service_name, 5.0)
 			response = ik_service_proxy(ik_request)
 		except (rospy.ServiceException, rospy.ROSException) as e:
-			rospy.logerr("Service call failed: %s" % (e,))
+			#rospy.logerr("Service call failed: %s" % (e,))
 			return
 
 		# Check if result valid, and type of seed ultimately used to get solution
 		if (response.result_type[0] > 0):
-			rospy.loginfo("SUCCESS!")
+			#rospy.loginfo("SUCCESS!")
 			# Format solution into Limb API-compatible dictionary
 			limb_joints = dict(list(zip(response.joints[0].name, response.joints[0].position)))
-			rospy.loginfo("\nIK Joint Solution:\n%s", limb_joints)
-			rospy.loginfo("------------------")
-			rospy.loginfo("Response Message:\n%s", response)
+			#rospy.loginfo("\nIK Joint Solution:\n%s", limb_joints)
+			#rospy.loginfo("------------------")
+			#rospy.loginfo("Response Message:\n%s", response)
 			#group.plan()
 			return limb_joints
 		else:
-			rospy.logerr("INVALID POSE - No Valid Joint Solution Found.")
-			rospy.logerr("Result Error %d", response.result_type[0])
+			#rospy.logerr("INVALID POSE - No Valid Joint Solution Found.")
+			#rospy.logerr("Result Error %d", response.result_type[0])
 			return False
 	def get_best_angles_from_target_position(self, target, orientation, number_of_trials, frame="right_hand"):
 		angle_sets = []
 		for i in range(number_of_trials):
-			angle_sets.append(list(self.get_target_angles_from_target_position(target, orientation, frame).values()))
+			try:
+				angle_sets.append(list(self.get_target_angles_from_target_position(target, orientation, frame).values()))
+			except:
+				continue
 		differences = [np.linalg.norm(np.array(angle_sets[i])-np.array(self.get_angles())) for i in range(number_of_trials)]
 		return angle_sets[np.argmin(differences)]
 
@@ -207,7 +372,7 @@ class Controller:
 	def move_piece_using_board_pos(self, start_file, start_rank, end_file, end_rank, z):
 		offset_z = 0.1
 		x1, y1 = get_square_position(start_file, start_rank)
-		target1 = [x1, y1, z+0.5]
+		target1 = [x1, y1, z+0.3]
 		angles1 = self.get_best_angles_from_target_position(target1, [0, 1, 0, 0], 20)
 		self.move(angles1, 0.1)
 
@@ -221,7 +386,7 @@ class Controller:
 
 		x2, y2 = get_square_position(end_file, end_rank)
 
-		target3 = [x2, y2, z+0.5]
+		target3 = [x2, y2, z+0.3]
 
 		angles3 = self.get_best_angles_from_target_position(target3, [0, 1, 0, 0], 20)
 		self.move(angles3, 0.1)
@@ -263,6 +428,12 @@ if __name__ == "__main__":
 	corner_34 = [0.2188662109375, -0.6931767578125, 0.767427734375, 2.65449609375, 1.1742578125, -2.1683115234375, 0.7951689453125]
 	corner_35 = [0.4001396484375, 0.5237109375, -1.3315, 0.4529443359375, 1.3628857421875, -0.6367509765625, 2.43728515625]
 
+	board_view_1 = [-0.0712421875, -0.758689453125, 0.1645068359375, 1.5007255859375, 0.055849609375, -0.7430625, 4.4440576171875]
+	board_view_2 = [-0.7769765625, -0.9045869140625, 0.5120439453125, 1.723685546875, -0.385845703125, -0.8170810546875, 4.4440576171875]
+	board_view_3 = [-1.056103515625, -1.2960380859375, 0.7043603515625, 2.5631884765625, -0.3878984375, -1.215564453125, 4.4440576171875]
+
+	board_view_4 = [0.0110966796875, -1.06383203125, 0.0953701171875, 2.407669921875, 0.04009765625, -1.3784873046875, 4.44178515625]
+
 
 	'''control.move(corner_32)
 				rospy.sleep(2.0)
@@ -284,14 +455,18 @@ if __name__ == "__main__":
 	num_times_scanned = [0 for i in range(36)]
 	piece_position_tuples_from_based = [None for i in range(36)]
 
-	def move_and_scan(view_pos, piece_position_tuples_from_based, num_times_scanned):
+	def move_and_scan(view_pos, piece_position_tuples_from_based, num_times_scanned, include_corners=False):
+		if include_corners: 
+			max_index = 36
+		else: 
+			max_index = 32
 		if len(view_pos) == 7:
 			control.move(view_pos)
 		else:
 			angles = control.get_best_angles_from_target_position(view_pos, [0, 0, 1, 0], 50, "right_hand_camera")
 			control.move(angles)
 		rospy.sleep(2.0)
-		for i in range(36): 
+		for i in range(max_index): 
 			try: 
 				transform = control.get_transform(ar_markers[i])
 				piece_transforms[i] = transform
@@ -309,8 +484,24 @@ if __name__ == "__main__":
 		return piece_position_tuples_from_based, num_times_scanned
 
 	view_positions = [corner_32, corner_33, corner_34, corner_35]
+
+	noise_scale = .1
+
+	noise = np.random.rand(len(view_positions), len(view_positions[0])) * noise_scale 
+
+	second_views = list(noise + np.array(view_positions))
+	#view_positions = view_positions + second_views
+
+
+
+
 	for view_pos in view_positions: 
-		piece_position_tuples_from_based, num_times_scanned = move_and_scan(view_pos, piece_position_tuples_from_based, num_times_scanned)
+		piece_position_tuples_from_based, num_times_scanned = move_and_scan(view_pos, piece_position_tuples_from_based, num_times_scanned, include_corners=True)
+
+	view_positions = [board_view_1, board_view_2,board_view_3, board_view_4]
+	for view_pos in view_positions: 
+		piece_position_tuples_from_based, num_times_scanned = move_and_scan(view_pos, piece_position_tuples_from_based, num_times_scanned, include_corners=False)
+
 
 
 
@@ -318,18 +509,6 @@ if __name__ == "__main__":
 	print(f"the positions {piece_position_tuples_from_based}")
 	print(f"the number of times visited {num_times_scanned}")
 	#a = 1/0
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 	board = [["" for i in range(8)] for j in range(8)]
@@ -404,7 +583,8 @@ if __name__ == "__main__":
 	for i, piece_position_tuple in enumerate(piece_position_tuples_from_based[:32]): 
 		piece_name = piece_names[i]
 		try:
-			file, rank = position_file_rank(piece_position_tuple) 
+			rank, file = position_file_rank(piece_position_tuple) 
+			rank = int(7 - rank)
 		except: 
 			continue
 		print(f"We are stating that piece {piece_name} is at position {(file, rank)}")
@@ -445,7 +625,7 @@ if __name__ == "__main__":
 	def make_fenstring(position, computer_color, castle_rights, enpassant, half_moves, full_move_counter): 
 		return f"{position} {computer_color} {castle_rights} {enpassant} {str(half_moves)} {str(full_move_counter)}"
 	fenstring = make_fenstring(position, computer_color, castle_rights, enpassant, half_moves, full_move_counter)
-	print(f"current directory: {os.getcwd()}")
+	print(fenstring)
 	#memory = psutil.virtual_memory()
 	#print(f"The avaliable memory in bytes is: {memory.avaliable}")
 	
@@ -453,12 +633,13 @@ if __name__ == "__main__":
 		del transform
 	gc.collect()
 
-	fenstring = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 2"
+	#fenstring = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 	rospy.sleep(1.0)
-	#board = chess.Board(fenstring)
-	#engine = chess.engine.SimpleEngine.popen_uci("nodes/stockfish/stockfish-ubuntu-x86-64-avx2")
-	#result = engine.play(board, chess.engine.Limit(time=1.0))
-	best_move = "g5a2"#str(result.move)
+	board = chess.Board(fenstring)
+	print("made board")
+	result = determine_best_move(board, True)#chess.engine.SimpleEngine.popen_uci("/home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/src/chess_solver/src/nodes/stockfish/stockfish-ubuntu-x86-64-avx2")
+	#result = engine.play(board)
+	best_move = str(result)
 	print("Best move:", best_move)
 
 	def letter_to_number(letter):
@@ -512,3 +693,4 @@ if __name__ == "__main__":
 	# control.close()
 	# control.move()
 	#print(control.ik_service_client())
+
