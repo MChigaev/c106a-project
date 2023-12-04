@@ -204,6 +204,34 @@ class Controller:
 
 		self.move(angles3, 0.1)
 
+	def move_piece_using_board_pos(self, start_file, start_rank, end_file, end_rank, z):
+		offset_z = 0.1
+		x1, y1 = get_square_position(start_file, start_rank)
+		target1 = [x1, y1, z+0.5]
+		angles1 = self.get_best_angles_from_target_position(target1, [0, 1, 0, 0], 20)
+		self.move(angles1, 0.1)
+
+		target2 = [x1, y1, z+offset_z]
+		angles2 = self.get_best_angles_from_target_position(target2, [0, 1, 0, 0], 20)
+		self.move(angles2, 0.1)
+		rospy.sleep(1.0)
+		self.close()
+
+		self.move(angles1, 0.1)
+
+		x2, y2 = get_square_position(end_file, end_rank)
+
+		target3 = [x2, y2, z+0.5]
+
+		angles3 = self.get_best_angles_from_target_position(target3, [0, 1, 0, 0], 20)
+		self.move(angles3, 0.1)
+
+		target4 = [x2, y2, z+offset_z]
+		angles4 = self.get_best_angles_from_target_position(target4, [0, 1, 0, 0], 20)
+		self.move(angles4, 0.1)
+
+		self.open()
+		self.move(angles3, 0.1)
 
 	'''
 	def get_all_frames(self):
@@ -216,8 +244,9 @@ if __name__ == "__main__":
 	
 	control = Controller()
 	#control.move()
-	# print(control.get_angles())
+	#print(control.get_angles())
 	control.open()
+	#a=1/0
 
 	#print(control.get_all_frames())
 
@@ -227,47 +256,78 @@ if __name__ == "__main__":
 	# view_pos_2 = [-0.0225810546875, -0.803453125, -0.0276064453125, 1.164185546875, 0.0672490234375, -0.3893779296875, 3.544720703125] # angles
 	view_pos_2 = [0.0845869140625, -0.73539453125, -0.3087646484375, 0.8947099609375, 0.1585498046875, -0.1894892578125, 3.543546875]
 
+	corner_32 = [-1.0479443359375, -0.419099609375, 0.052123046875, 1.8389501953125, -1.022732421875, -1.292626953125, 1.2591357421875]
+
+	corner_33 = [-0.4620087890625, 0.58908984375, -1.9538271484375, 0.7064208984375, 2.271958984375, -0.1718671875, 2.0085771484375]
+
+	corner_34 = [0.2188662109375, -0.6931767578125, 0.767427734375, 2.65449609375, 1.1742578125, -2.1683115234375, 0.7951689453125]
+	corner_35 = [0.4001396484375, 0.5237109375, -1.3315, 0.4529443359375, 1.3628857421875, -0.6367509765625, 2.43728515625]
 
 
+	'''control.move(corner_32)
+				rospy.sleep(2.0)
+				control.move(corner_33)
+				rospy.sleep(2.0)
+				control.move(corner_34)
+				rospy.sleep(2.0)
+				control.move(corner_35)
+				rospy.sleep(2.0)'''
 
 
-
-
-
-	control.move(view_pos_1)
 	# angles1 = control.get_best_angles_from_target_position(view_pos_1, [1, 0, 0, 1.52], 50, "right_hand_camera")
-	# control.move(angles1)
-	rospy.sleep(2.0)
+	#control.move(list(.5*np.array(corner_32)+.5*np.array(corner_35)))
+	#a=1/0
 
 	ar_markers = [f"ar_marker_{i}" for i in range(36)]
 	piece_names = ["r","n","b","q","k","b","n","r","p","p","p","p","p","p","p","p", "R","N","B","Q","K","B","N","R","P","P","P","P","P","P","P","P", "C1", "C2", "C3", "C4"]
 	piece_transforms = [None for i in range(36)]
-	num_times_scanned = [None for i in range(36)]
+	num_times_scanned = [0 for i in range(36)]
 	piece_position_tuples_from_based = [None for i in range(36)]
 
-	for i in range(36): 
-		try: 
-			transform = control.get_transform(ar_markers[i])
-			piece_transforms[i] = transform
-			if num_times_scanned[i] == 0: 
-				piece_position_tuples_from_based[i] = (transform.transform.translation.x, transform.transform.translation.y)
-			else: 
-				piece_position_tuples_from_based[i][0] = (num_times_scanned[i]/(num_times_scanned[i]+1))*piece_position_tuples_from_based[i][0] + (1/(num_times_scanned[i]+1))*transform.transform.translation.x
-			num_times_scanned[i]+=1
-		except: 
-			continue
+	def move_and_scan(view_pos, piece_position_tuples_from_based, num_times_scanned):
+		if len(view_pos) == 7:
+			control.move(view_pos)
+		else:
+			angles = control.get_best_angles_from_target_position(view_pos, [0, 0, 1, 0], 50, "right_hand_camera")
+			control.move(angles)
+		rospy.sleep(2.0)
+		for i in range(36): 
+			try: 
+				transform = control.get_transform(ar_markers[i])
+				piece_transforms[i] = transform
 
-	control.move(view_pos_2)
-	rospy.sleep(3.0)
+				if num_times_scanned[i] == 0: 
+					piece_position_tuples_from_based[i] = (transform.transform.translation.x, transform.transform.translation.y, transform.transform.translation.z)
+				else: 
+					piece_position_tuples_from_based[i][0] = (num_times_scanned[i]/(num_times_scanned[i]+1))*piece_position_tuples_from_based[i][0] + (1/(num_times_scanned[i]+1))*transform.transform.translation.x
+					piece_position_tuples_from_based[i][1] = (num_times_scanned[i]/(num_times_scanned[i]+1))*piece_position_tuples_from_based[i][1] + (1/(num_times_scanned[i]+1))*transform.transform.translation.y
+					piece_position_tuples_from_based[i][2] = (num_times_scanned[i]/(num_times_scanned[i]+1))*piece_position_tuples_from_based[i][2] + (1/(num_times_scanned[i]+1))*transform.transform.translation.Z
 
-	for i in range(36):
-		try: 
-			transform = control.get_transform(ar_markers[i])
-			piece_transforms[i] = transform
-			piece_position_tuples_from_based[i] = (transform.transform.translation.x, transform.transform.translation.y)
-			num_times_scanned[i]+=1
-		except: 
-			continue
+				num_times_scanned[i]+=1
+			except: 
+				continue
+		return piece_position_tuples_from_based, num_times_scanned
+
+	view_positions = [corner_32, corner_33, corner_34, corner_35]
+	for view_pos in view_positions: 
+		piece_position_tuples_from_based, num_times_scanned = move_and_scan(view_pos, piece_position_tuples_from_based, num_times_scanned)
+
+
+
+
+	print(f"the positions {piece_position_tuples_from_based}")
+	print(f"the number of times visited {num_times_scanned}")
+	#a = 1/0
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -292,21 +352,24 @@ if __name__ == "__main__":
 	x_maxs = [value[0] for value in [C2_pos, C4_pos] if value is not None]
 	x_max = np.average(x_maxs)
 
-	# x_min = min([corner[0] for corner in valid_corners]) +.07 #file a
+	# x_min = min([corner[0] for corner in valid_corners]) +.085 #file a
 	# x_min = ((C1_pos[0] + 0.07) + (C3_pos[0] + 0.07))/2
-	# x_max = max([corner[0] for corner in valid_corners]) -.07 #file h
+	# x_max = max([corner[0] for corner in valid_corners]) -.085 #file h
 	# x_max = C4_pos[0] - 0.07
 
 	# y_min = min([corner[1] for corner in valid_corners]) #rank 1
 	# y_min = C1_pos[1] + 0.07
 	y_mins = [value[1] for value in [C1_pos, C2_pos] if value is not None]
-	y_min = np.average(y_mins) + 0.07
+	y_min = np.average(y_mins) + 0.085
 	# y_max = max([corner[1] for corner in valid_corners]) #rank 8
 	# y_max = C4_pos[1] - 0.07
 	y_maxs = [value[1] for value in [C3_pos, C4_pos] if value is not None]
-	y_max = np.average(y_maxs) -0.07
+	y_max = np.average(y_maxs) - 0.085
 
-	print((x_min, x_max, y_min, y_max))
+	zs = [value[2] for value in [C1_pos, C2_pos, C3_pos, C4_pos] if value is not None]
+	z = np.average(zs)
+
+	print((x_min, x_max, y_min, y_max, z))
 
 	def get_square_position(file, rank):
 		x = ((x_max-x_min)/7)*file + x_min
@@ -395,7 +458,7 @@ if __name__ == "__main__":
 	#board = chess.Board(fenstring)
 	#engine = chess.engine.SimpleEngine.popen_uci("nodes/stockfish/stockfish-ubuntu-x86-64-avx2")
 	#result = engine.play(board, chess.engine.Limit(time=1.0))
-	best_move = "g5d2"#str(result.move)
+	best_move = "g5a2"#str(result.move)
 	print("Best move:", best_move)
 
 	def letter_to_number(letter):
@@ -435,7 +498,8 @@ if __name__ == "__main__":
 		print(f"The piece being captured is {piece_to_be_captured} and its location is {end_file}, {end_rank}")
 
 		### LOGIC TO REMOVE THIS PIECE
-	control.move_piece(piece_to_be_moved, end_file, end_rank, start_pos=(start_pos_x,start_pos_y))
+	control.move_piece_using_board_pos(start_file, start_rank, end_file, end_rank, z)
+	#control.move_piece(piece_to_be_moved, end_file, end_rank, start_pos=(start_pos_x,start_pos_y))
 	## Logiv to pick up piece and put it in the new position 
 	
 	
