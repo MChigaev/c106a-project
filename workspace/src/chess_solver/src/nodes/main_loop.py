@@ -27,6 +27,7 @@ from intera_interface import gripper as robot_gripper
 from intera_core_msgs.srv import SolvePositionIK, SolvePositionIKRequest
 from std_msgs.msg import Header
 from moveit_commander import MoveGroupCommander
+from std_msgs.msg import Bool
 
 #Chess imports
 import chess
@@ -343,15 +344,15 @@ class Controller:
 			target1[0] = start_pos[0]
 			target1[1] = start_pos[1]
 		angles1 = self.get_best_angles_from_target_position(target1, [0, 1, 0, 0], 20)
-		self.move(angles1, 0.1)
+		self.move(angles1, 0.3)
 
 		target2 = [transform.transform.translation.x+offsetx, transform.transform.translation.y+offsety, transform.transform.translation.z+offsetz]
 		angles2 = self.get_best_angles_from_target_position(target2, [0, 1, 0, 0], 20)
-		self.move(angles2, 0.1)
+		self.move(angles2, 0.3)
 		rospy.sleep(1.0)
 		self.close()
 
-		self.move(angles1, 0.1)
+		self.move(angles1, 0.3)
 
 		x, y = get_square_position(end_file, end_rank)
 		z = target1[2]
@@ -359,15 +360,15 @@ class Controller:
 		target3 = [x+offsetx, y+offsety, z]
 
 		angles3 = self.get_best_angles_from_target_position(target3, [0, 1, 0, 0], 20)
-		self.move(angles3, 0.1)
+		self.move(angles3, 0.3)
 
 		target4 = [x, y, target2[2]]
 		angles4 = self.get_best_angles_from_target_position(target4, [0, 1, 0, 0], 20)
-		self.move(angles4, 0.1)
+		self.move(angles4, 0.3)
 
 		self.open()
 
-		self.move(angles3, 0.1)
+		self.move(angles3, 0.3)
 
 	def move_piece_using_board_pos(self, start_file, start_rank, end_file, end_rank, z):
 		offset_z = 0.1
@@ -403,15 +404,24 @@ class Controller:
 		return self.Buffer.allFramesAsYAML(rospy.Time())
 	'''
 
-
+def callback(message):
+	print(f"Message Received: {message}")
+	global blue_check
+	blue_check = message
+class Dummy():
+	def __init__(self):
+		self.data = False
 
 if __name__ == "__main__":
-	
+	global blue_check 
+	blue_check = Dummy()
 	control = Controller()
+	rospy.Subscriber("camera", Bool, callback)
+	rospy.sleep(3)
 	#control.move()
 	#print(control.get_angles())
 	control.open()
-	#a=1/0
+	
 
 	#print(control.get_all_frames())
 
@@ -449,39 +459,61 @@ if __name__ == "__main__":
 	#control.move(list(.5*np.array(corner_32)+.5*np.array(corner_35)))
 	#a=1/0
 
+	def get_square_position(file, rank):
+		if file == -1: 
+			x = x_max + .09
+			y = y_min
+			return (x, y)
+
+		x = ((x_max-x_min)/7)*file + x_min
+		y = ((y_max-y_min)/7)*rank + y_min #+ 0.0762
+		return (x,y)
+
+
+	def move_and_scan(view_pos, piece_position_tuples_from_based, num_times_scanned, include_corners=False):
+			if include_corners: 
+				max_index = 36
+			else: 
+				max_index = 32
+
+
+			if len(view_pos) == 7:
+				control.move(view_pos)
+			else:
+				angles = control.get_best_angles_from_target_position(view_pos, [0, 0, 1, 0], 50, "right_hand_camera")
+				control.move(angles, 0.7)
+
+			rospy.sleep(1.0)
+			for i in range(max_index): 
+				try: 
+					transform = control.get_transform(ar_markers[i])
+					piece_transforms[i] = transform
+
+					if num_times_scanned[i] == 0: 
+						piece_position_tuples_from_based[i] = (transform.transform.translation.x, transform.transform.translation.y, transform.transform.translation.z)
+					else: 
+						piece_position_tuples_from_based[i][0] = (num_times_scanned[i]/(num_times_scanned[i]+1))*piece_position_tuples_from_based[i][0] + (1/(num_times_scanned[i]+1))*transform.transform.translation.x
+						piece_position_tuples_from_based[i][1] = (num_times_scanned[i]/(num_times_scanned[i]+1))*piece_position_tuples_from_based[i][1] + (1/(num_times_scanned[i]+1))*transform.transform.translation.y
+						piece_position_tuples_from_based[i][2] = (num_times_scanned[i]/(num_times_scanned[i]+1))*piece_position_tuples_from_based[i][2] + (1/(num_times_scanned[i]+1))*transform.transform.translation.Z
+
+					num_times_scanned[i]+=1
+				except: 
+					continue
+			return piece_position_tuples_from_based, num_times_scanned
+
+
+	global ar_markers
+	global piece_names
+	global piece_transforms
+	global num_times_scanned
+	global piece_position_tuples_from_based
 	ar_markers = [f"ar_marker_{i}" for i in range(36)]
 	piece_names = ["r","n","b","q","k","b","n","r","p","p","p","p","p","p","p","p", "R","N","B","Q","K","B","N","R","P","P","P","P","P","P","P","P", "C1", "C2", "C3", "C4"]
+
 	piece_transforms = [None for i in range(36)]
 	num_times_scanned = [0 for i in range(36)]
 	piece_position_tuples_from_based = [None for i in range(36)]
 
-	def move_and_scan(view_pos, piece_position_tuples_from_based, num_times_scanned, include_corners=False):
-		if include_corners: 
-			max_index = 36
-		else: 
-			max_index = 32
-		if len(view_pos) == 7:
-			control.move(view_pos)
-		else:
-			angles = control.get_best_angles_from_target_position(view_pos, [0, 0, 1, 0], 50, "right_hand_camera")
-			control.move(angles)
-		rospy.sleep(2.0)
-		for i in range(max_index): 
-			try: 
-				transform = control.get_transform(ar_markers[i])
-				piece_transforms[i] = transform
-
-				if num_times_scanned[i] == 0: 
-					piece_position_tuples_from_based[i] = (transform.transform.translation.x, transform.transform.translation.y, transform.transform.translation.z)
-				else: 
-					piece_position_tuples_from_based[i][0] = (num_times_scanned[i]/(num_times_scanned[i]+1))*piece_position_tuples_from_based[i][0] + (1/(num_times_scanned[i]+1))*transform.transform.translation.x
-					piece_position_tuples_from_based[i][1] = (num_times_scanned[i]/(num_times_scanned[i]+1))*piece_position_tuples_from_based[i][1] + (1/(num_times_scanned[i]+1))*transform.transform.translation.y
-					piece_position_tuples_from_based[i][2] = (num_times_scanned[i]/(num_times_scanned[i]+1))*piece_position_tuples_from_based[i][2] + (1/(num_times_scanned[i]+1))*transform.transform.translation.Z
-
-				num_times_scanned[i]+=1
-			except: 
-				continue
-		return piece_position_tuples_from_based, num_times_scanned
 
 	view_positions = [corner_32, corner_33, corner_34, corner_35]
 
@@ -498,199 +530,237 @@ if __name__ == "__main__":
 	for view_pos in view_positions: 
 		piece_position_tuples_from_based, num_times_scanned = move_and_scan(view_pos, piece_position_tuples_from_based, num_times_scanned, include_corners=True)
 
-	view_positions = [board_view_1, board_view_2,board_view_3, board_view_4]
-	for view_pos in view_positions: 
-		piece_position_tuples_from_based, num_times_scanned = move_and_scan(view_pos, piece_position_tuples_from_based, num_times_scanned, include_corners=False)
+
+	def move_if_possible():
+		global ar_markers
+		global piece_names
+		global piece_transforms
+		global num_times_scanned
+		global piece_position_tuples_from_based
+
+		#rospy.Subscriber("camera", Bool, callback)
+		print(f"Blue check: {blue_check}")
+		if blue_check.data: 
+			rospy.sleep(3)
+			move_if_possible()
+
+
+		for i in range(32): 
+			piece_transforms[i] = None
+			num_times_scanned[i] = 0
+			piece_position_tuples_from_based[i] = None
+
+		view_positions = [board_view_1, board_view_2,board_view_3, board_view_4]
+		noise_scale = .1
+
+		noise = np.random.rand(len(view_positions), len(view_positions[0])) * noise_scale 
+
+		second_views = list(noise + np.array(view_positions))
+		view_positions = view_positions + second_views
+		for view_pos in view_positions: 
+			piece_position_tuples_from_based, num_times_scanned = move_and_scan(view_pos, piece_position_tuples_from_based, num_times_scanned, include_corners=False)
 
 
 
 
 
-	print(f"the positions {piece_position_tuples_from_based}")
-	print(f"the number of times visited {num_times_scanned}")
-	#a = 1/0
+		print(f"the positions {piece_position_tuples_from_based}")
+		print(f"the number of times visited {num_times_scanned}")
+		#a = 1/0
 
 
-	board = [["" for i in range(8)] for j in range(8)]
-	board_ar_trackers = [["" for i in range(8)] for j in range(8)]
-	board_transforms = [[None for i in range(8)] for j in range(8)]
+		board = [["" for i in range(8)] for j in range(8)]
+		board_ar_trackers = [["" for i in range(8)] for j in range(8)]
+		board_transforms = [[None for i in range(8)] for j in range(8)]
 
-	## get board edges 
-	C1_pos = piece_position_tuples_from_based[32]
-	C2_pos = piece_position_tuples_from_based[33]
-	C3_pos = piece_position_tuples_from_based[34]
-	C4_pos = piece_position_tuples_from_based[35]
-	print((C1_pos, C2_pos, C3_pos, C4_pos))
-
-
-	# valid_corners = [corner for corner in [C1_pos, C2_pos, C3_pos, C4_pos] if corner is not None]
-
-	x_mins = [value[0] for value in [C1_pos, C3_pos] if value is not None]
-	x_min = np.average(x_mins)
-
-	x_maxs = [value[0] for value in [C2_pos, C4_pos] if value is not None]
-	x_max = np.average(x_maxs)
-
-	# x_min = min([corner[0] for corner in valid_corners]) +.085 #file a
-	# x_min = ((C1_pos[0] + 0.07) + (C3_pos[0] + 0.07))/2
-	# x_max = max([corner[0] for corner in valid_corners]) -.085 #file h
-	# x_max = C4_pos[0] - 0.07
-
-	# y_min = min([corner[1] for corner in valid_corners]) #rank 1
-	# y_min = C1_pos[1] + 0.07
-	y_mins = [value[1] for value in [C1_pos, C2_pos] if value is not None]
-	y_min = np.average(y_mins) + 0.085
-	# y_max = max([corner[1] for corner in valid_corners]) #rank 8
-	# y_max = C4_pos[1] - 0.07
-	y_maxs = [value[1] for value in [C3_pos, C4_pos] if value is not None]
-	y_max = np.average(y_maxs) - 0.085
-
-	zs = [value[2] for value in [C1_pos, C2_pos, C3_pos, C4_pos] if value is not None]
-	z = np.average(zs)
-
-	print((x_min, x_max, y_min, y_max, z))
-
-	def get_square_position(file, rank):
-		x = ((x_max-x_min)/7)*file + x_min
-		y = ((y_max-y_min)/7)*rank + y_min #+ 0.0762
-		return (x,y)
+		## get board edges 
+		C1_pos = piece_position_tuples_from_based[32]
+		C2_pos = piece_position_tuples_from_based[33]
+		C3_pos = piece_position_tuples_from_based[34]
+		C4_pos = piece_position_tuples_from_based[35]
+		print((C1_pos, C2_pos, C3_pos, C4_pos))
 
 
-	def position_file_rank(position): 
-		if position == None: 
-			return
-		x = position[0]
-		y = position[1]
+		# valid_corners = [corner for corner in [C1_pos, C2_pos, C3_pos, C4_pos] if corner is not None]
 
-		x_board_length = x_max-x_min
-		position_along_x_dimension_of_board =x-x_min
+		global x_min
+		x_mins = [value[0] for value in [C1_pos, C3_pos] if value is not None]
+		x_min = np.average(x_mins)
 
-		file = int(np.round(np.abs((7*(position_along_x_dimension_of_board)/(x_board_length)))))
-		rank = int(np.round(np.abs(7*(y-y_min)/(y_max-y_min)))) 
+		global x_max
+		x_maxs = [value[0] for value in [C2_pos, C4_pos] if value is not None]
+		x_max = np.average(x_maxs)
 
-		print(7*(x-x_min)/(x_max-x_min))
-		print(7*(y-y_min)/(y_max-y_min))
-		file = min(file, 7)
-		file = max(file, 0)
-		rank = min(rank, 7)
-		rank = max(rank, 0)
+		# x_min = min([corner[0] for corner in valid_corners]) +.085 #file a
+		# x_min = ((C1_pos[0] + 0.07) + (C3_pos[0] + 0.07))/2
+		# x_max = max([corner[0] for corner in valid_corners]) -.085 #file h
+		# x_max = C4_pos[0] - 0.07
 
-		return (file, rank)
+		# y_min = min([corner[1] for corner in valid_corners]) #rank 1
+		# y_min = C1_pos[1] + 0.07
+		global y_min
+		y_mins = [value[1] for value in [C1_pos, C2_pos] if value is not None]
+		y_min = np.average(y_mins) + 0.085
+		# y_max = max([corner[1] for corner in valid_corners]) #rank 8
+		# y_max = C4_pos[1] - 0.07
+		global y_max
+		y_maxs = [value[1] for value in [C3_pos, C4_pos] if value is not None]
+		y_max = np.average(y_maxs) - 0.085
 
+		global z
+		zs = [value[2] for value in [C1_pos, C2_pos, C3_pos, C4_pos] if value is not None]
+		z = np.average(zs)
 
-	##
-
-	for i, piece_position_tuple in enumerate(piece_position_tuples_from_based[:32]): 
-		piece_name = piece_names[i]
-		try:
-			rank, file = position_file_rank(piece_position_tuple) 
-			rank = int(7 - rank)
-		except: 
-			continue
-		print(f"We are stating that piece {piece_name} is at position {(file, rank)}")
-		board[file][rank] = piece_name
-		board_ar_trackers[file][rank] = ar_markers[i]
-		board_transforms[file][rank] = piece_transforms[i]
+		print((x_min, x_max, y_min, y_max, z))
 
 
-	print(board)
-
-	def get_position_string(board):
-		board_string = ""
-		for row in board: 
-			row_string = ""
-			num_empty = 0
-			for piece in row:
-				if piece == "": 
-					num_empty+=1
-				else: 
-					if num_empty != 0: 
-						row_string += str(num_empty)
-					num_empty = 0
-					row_string += piece
-			if num_empty != 0: 
-				row_string += str(num_empty)
-			board_string += "/" + row_string
-		return board_string[1:]
-
-	
-	position = get_position_string(board) #"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
-	print(f"The board string is {position}")
-	computer_color = 'b'
-	castle_rights = "KQkq"
-	enpassant = "-"
-	half_moves = 0 #increment on each black move since the last capture has occurred (needed for 50 half-move stalemate rule)
-	full_move_counter = 0 #increment each time computer moves
-	
-	def make_fenstring(position, computer_color, castle_rights, enpassant, half_moves, full_move_counter): 
-		return f"{position} {computer_color} {castle_rights} {enpassant} {str(half_moves)} {str(full_move_counter)}"
-	fenstring = make_fenstring(position, computer_color, castle_rights, enpassant, half_moves, full_move_counter)
-	print(fenstring)
-	#memory = psutil.virtual_memory()
-	#print(f"The avaliable memory in bytes is: {memory.avaliable}")
-	
-	for transform in piece_transforms: 
-		del transform
-	gc.collect()
-
-	#fenstring = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
-	rospy.sleep(1.0)
-	board = chess.Board(fenstring)
-	print("made board")
-	result = determine_best_move(board, True)#chess.engine.SimpleEngine.popen_uci("/home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/src/chess_solver/src/nodes/stockfish/stockfish-ubuntu-x86-64-avx2")
-	#result = engine.play(board)
-	best_move = str(result)
-	print("Best move:", best_move)
-
-	def letter_to_number(letter):
-		if letter == "a":
-			return 7
-		elif letter == "b":
-			return 6
-		elif letter == "c":
-			return 5
-		elif letter == "d": 
-			return 4
-		elif letter == "e": 
-			return 3
-		elif letter == "f": 
-			return 2
-		elif letter == "g": 
-			return 1
-		elif letter == "h": 
-			return 0
-
-	start_file = letter_to_number(best_move[0])
-	start_rank = 8-int(best_move[1])
-
-	start_pos_x, start_pos_y = get_square_position(start_file, start_rank)
-
-	end_file = letter_to_number(best_move[2])
-	end_rank = 8-int(best_move[3])
-
-	piece_to_be_moved = board_ar_trackers[start_file][start_rank]
-
-	piece_to_be_captured = board_ar_trackers[end_file][end_rank]
-
-	print(f"The piece being moved is {piece_to_be_moved} and its location is {start_file}, {start_rank}")
 
 
-	if piece_to_be_captured != "": 
-		print(f"The piece being captured is {piece_to_be_captured} and its location is {end_file}, {end_rank}")
+		def position_file_rank(position): 
+			if position == None: 
+				return
+			x = position[0]
+			y = position[1]
 
-		### LOGIC TO REMOVE THIS PIECE
-	control.move_piece_using_board_pos(start_file, start_rank, end_file, end_rank, z)
-	#control.move_piece(piece_to_be_moved, end_file, end_rank, start_pos=(start_pos_x,start_pos_y))
-	## Logiv to pick up piece and put it in the new position 
-	
-	
-	# control.move()
-	# transform = control.get_transform("ar_marker_0")
-	# target = [transform.transform.translation.x, transform.transform.translation.y, transform.transform.translation.z]
-	# joint_angles = list(control.ik_service_client(target).values())
-	# print(joint_angles)
-	# control.move(joint_angles)
-	# control.close()
-	# control.move()
-	#print(control.ik_service_client())
+			x_board_length = x_max-x_min
+			position_along_x_dimension_of_board =x-x_min
+
+			file = int(np.round(np.abs((7*(position_along_x_dimension_of_board)/(x_board_length)))))
+			rank = int(np.round(np.abs(7*(y-y_min)/(y_max-y_min)))) 
+
+			print(7*(x-x_min)/(x_max-x_min))
+			print(7*(y-y_min)/(y_max-y_min))
+			file = min(file, 7)
+			file = max(file, 0)
+			rank = min(rank, 7)
+			rank = max(rank, 0)
+
+			return (file, rank)
+
+
+		##
+
+		for i, piece_position_tuple in enumerate(piece_position_tuples_from_based[:32]): 
+			piece_name = piece_names[i]
+			try:
+				rank, file = position_file_rank(piece_position_tuple) 
+				rank = int(7 - rank)
+			except: 
+				continue
+			print(f"We are stating that piece {piece_name} is at position {(file, rank)}")
+			board[file][rank] = piece_name
+			board_ar_trackers[file][rank] = ar_markers[i]
+			board_transforms[file][rank] = piece_transforms[i]
+
+
+		print(board)
+
+		def get_position_string(board):
+			board_string = ""
+			for row in board: 
+				row_string = ""
+				num_empty = 0
+				for piece in row:
+					if piece == "": 
+						num_empty+=1
+					else: 
+						if num_empty != 0: 
+							row_string += str(num_empty)
+						num_empty = 0
+						row_string += piece
+				if num_empty != 0: 
+					row_string += str(num_empty)
+				board_string += "/" + row_string
+			return board_string[1:]
+
+		
+		position = get_position_string(board) #"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
+		print(f"The board string is {position}")
+		computer_is_white = True
+		if computer_is_white:
+			computer_color = 'w'
+		else:
+			computer_color = 'b'
+		castle_rights = "-"#"KQkq"
+		enpassant = "-"
+		half_moves = 0 #increment on each black move since the last capture has occurred (needed for 50 half-move stalemate rule)
+		full_move_counter = 0 #increment each time computer moves
+		
+		def make_fenstring(position, computer_color, castle_rights, enpassant, half_moves, full_move_counter): 
+			return f"{position} {computer_color} {castle_rights} {enpassant} {str(half_moves)} {str(full_move_counter)}"
+		fenstring = make_fenstring(position, computer_color, castle_rights, enpassant, half_moves, full_move_counter)
+		print(fenstring)
+		#memory = psutil.virtual_memory()
+		#print(f"The avaliable memory in bytes is: {memory.avaliable}")
+		
+		for transform in piece_transforms: 
+			del transform
+		gc.collect()
+
+		#fenstring = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+		rospy.sleep(1.0)
+		board_object = chess.Board(fenstring)
+		print("made board")
+		result = determine_best_move(board_object, computer_is_white)#chess.engine.SimpleEngine.popen_uci("/home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/src/chess_solver/src/nodes/stockfish/stockfish-ubuntu-x86-64-avx2")
+		#result = engine.play(board)
+		best_move = str(result)
+		print("Best move:", best_move)
+
+		def letter_to_number(letter):
+			if letter == "a":
+				return 7
+			elif letter == "b":
+				return 6
+			elif letter == "c":
+				return 5
+			elif letter == "d": 
+				return 4
+			elif letter == "e": 
+				return 3
+			elif letter == "f": 
+				return 2
+			elif letter == "g": 
+				return 1
+			elif letter == "h": 
+				return 0
+
+		start_file = letter_to_number(best_move[0])
+		start_rank = 8-int(best_move[1])
+
+		start_pos_x, start_pos_y = get_square_position(start_file, start_rank)
+
+		end_file = letter_to_number(best_move[2])
+		end_rank = 8-int(best_move[3])
+
+		piece_to_be_moved = board[start_rank][7-start_file]
+		piece_to_be_captured = board[end_rank][7-end_file]
+
+		print(f"The piece being moved is {piece_to_be_moved} and its location is {start_file}, {start_rank}")
+
+
+		if piece_to_be_captured != "": 
+			print(f"The piece being captured is {piece_to_be_captured} and its location is {end_file}, {end_rank}")
+			control.move_piece_using_board_pos(end_file, end_rank, -1, -1, z+0.10795)
+
+			### LOGIC TO REMOVE THIS PIECE
+		control.move_piece_using_board_pos(start_file, start_rank, end_file, end_rank, z+0.10795)
+		#control.move_piece(piece_to_be_moved, end_file, end_rank, start_pos=(start_pos_x,start_pos_y))
+		## Logiv to pick up piece and put it in the new position 
+		
+		
+		# control.move()
+		# transform = control.get_transform("ar_marker_0")
+		# target = [transform.transform.translation.x, transform.transform.translation.y, transform.transform.translation.z]
+		# joint_angles = list(control.ik_service_client(target).values())
+		# print(joint_angles)
+		# control.move(joint_angles)
+		# control.close()
+		# control.move()
+		#print(control.ik_service_client())
+
+
+		##Move again 
+		rospy.sleep(2)
+		move_if_possible()
+	move_if_possible()
 

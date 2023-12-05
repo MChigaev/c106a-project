@@ -1,6 +1,9 @@
+#!/usr/bin/env python
+
 import cv2
 import numpy as np
 import time
+import rospy
 
 def is_blue_present(frame):
     # Convert the frame from BGR to HSV color space
@@ -16,10 +19,12 @@ def is_blue_present(frame):
     """ 
 
   
-    lower_blue = np.array([100, 180, 140])
+    lower_blue = np.array([100, 100, 120])
     upper_blue = np.array([120, 230, 220])
     mask = cv2.inRange(hsv, lower_blue, upper_blue)
     result = cv2.bitwise_and(frame, frame, mask=mask)
+    #count = cv2.countNonZero(result)
+    #return count > 10
     return np.any(result)
 
 
@@ -29,18 +34,29 @@ def open_camera():
 def release_camera(cap):
     cap.release()
 
-def safety_cam(cap):
+def safety_cam(cap, publisher):
     blue_detected = False
 
     while True:
+
         ret, frame = cap.read()
         if not ret:
             print("Error: Could not read frame.")
             break
 
         blue_present = is_blue_present(frame)
+        print(f"Blue_present: {blue_present}")
+        publisher.publish(blue_present)
+        cv2.imshow('Original Frame', frame)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+        continue
+        rospy.sleep(0.3)
+
+        '''
         if blue_present and not blue_detected:
             print("Blue is present in the frame.")
+            publisher.publish(True)
 
         elif not blue_present and blue_detected:
             print("Blue is no longer present. Waiting for 3 seconds...")
@@ -59,11 +75,17 @@ def safety_cam(cap):
 
             if not blue_present:
                 print("Making move!")
+                publisher.publish(False)
+        else:
+            publisher.publish(False)
+
 
         blue_detected = blue_present
         cv2.imshow('Original Frame', frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
+        rospy.sleep(0.5)
+        '''
 
 def main():
     cap = open_camera()
