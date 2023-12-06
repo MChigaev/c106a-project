@@ -699,10 +699,37 @@ if __name__ == "__main__":
 
 		#fenstring = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 		rospy.sleep(1.0)
-		board_object = chess.Board(fenstring)
+		#board_object = chess.Board(fenstring)
 		print("made board")
-		result = determine_best_move(board_object, computer_is_white)#chess.engine.SimpleEngine.popen_uci("/home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/src/chess_solver/src/nodes/stockfish/stockfish-ubuntu-x86-64-avx2")
+		#result = determine_best_move(board_object, computer_is_white)#chess.engine.SimpleEngine.popen_uci("/home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/src/chess_solver/src/nodes/stockfish/stockfish-ubuntu-x86-64-avx2")
 		#result = engine.play(board)
+		import requests
+
+		def get_optimal_move(fen_string, api_token):
+			url = f"https://lichess.org/api/cloud-eval"
+			headers = {
+				'Authorization': f'Bearer {api_token}'
+			}
+			params = {
+				'fen': fen_string
+			}
+
+			response = requests.get(url, headers=headers, params=params)
+
+			if response.status_code == 200:
+				data = response.json()
+				#print(data)
+				best_move = data['pvs'][0]['moves'][:4] # data.get('move', None)
+				if best_move:
+					return best_move
+				else:
+					return "No optimal move found"
+			else:
+				return f"Error: {response.status_code}"
+
+		# Example usage
+		api_token = "lip_Kxj9cYtrOEjS9uDz2bPo"
+		result = get_optimal_move(fen_string, api_token)
 		best_move = str(result)
 		print("Best move:", best_move)
 
