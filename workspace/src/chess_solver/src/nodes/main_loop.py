@@ -220,7 +220,7 @@ class Controller:
 	def move(self, angles = [-0.026388671875, -1.3595009765625, -0.079771484375, 1.3575205078125, 0.0011318359375, 0.01973046875, 1.699166015625], max_speed_ratio=0.3):
 		self.traj = MotionTrajectory(limb = self.limb)
 		wpt_opts = MotionWaypointOptions(max_joint_speed_ratio=max_speed_ratio,
-                                         max_joint_accel=0.5)
+											max_joint_accel=0.5)
 		waypoint = MotionWaypoint(options = wpt_opts.to_msg(), limb = self.limb)
 
 		joint_angles = self.limb.joint_ordered_angles()
@@ -233,14 +233,14 @@ class Controller:
 
 		result = self.traj.send_trajectory(timeout=None)
 		if result is None:
-		    rospy.logerr('Trajectory FAILED to send')
-		    return
+			rospy.logerr('Trajectory FAILED to send')
+			return
 
 		if result.result:
-		    rospy.loginfo('Motion controller successfully finished the trajectory!')
+			rospy.loginfo('Motion controller successfully finished the trajectory!')
 		else:
-		    rospy.logerr('Motion controller failed to complete the trajectory with error %s',
-		                 result.errorId)
+			rospy.logerr('Motion controller failed to complete the trajectory with error %s',
+							result.errorId)
 	def get_angles(self):
 		return self.limb.joint_ordered_angles()
 	# def move_to_frame(target_frame, orientation):
@@ -373,7 +373,7 @@ class Controller:
 	def move_piece_using_board_pos(self, start_file, start_rank, end_file, end_rank, z):
 		offset_z = 0.1
 		x1, y1 = get_square_position(start_file, start_rank)
-		target1 = [x1, y1, z+0.3]
+		target1 = [x1, y1, z+0.25]
 		angles1 = self.get_best_angles_from_target_position(target1, [0, 1, 0, 0], 20)
 		self.move(angles1, 0.1)
 
@@ -387,7 +387,7 @@ class Controller:
 
 		x2, y2 = get_square_position(end_file, end_rank)
 
-		target3 = [x2, y2, z+0.3]
+		target3 = [x2, y2, z+0.25]
 
 		angles3 = self.get_best_angles_from_target_position(target3, [0, 1, 0, 0], 20)
 		self.move(angles3, 0.1)
@@ -508,7 +508,7 @@ if __name__ == "__main__":
 	global num_times_scanned
 	global piece_position_tuples_from_based
 	ar_markers = [f"ar_marker_{i}" for i in range(36)]
-	piece_names = ["r","n","b","q","k","b","n","r","p","p","p","p","p","p","p","p", "R","N","B","Q","K","B","N","R","P","P","P","P","P","P","P","P", "C1", "C2", "C3", "C4"]
+	piece_names = ["R","N","B","Q","K","B","N","R","P","P","P","P","P","P","P","P", "r","n","b","q","k","b","n","r","p","p","p","p","p","p","p","p", "C1", "C2", "C3", "C4"]
 
 	piece_transforms = [None for i in range(36)]
 	num_times_scanned = [0 for i in range(36)]
@@ -550,8 +550,8 @@ if __name__ == "__main__":
 			num_times_scanned[i] = 0
 			piece_position_tuples_from_based[i] = None
 
-		view_positions = [board_view_1, board_view_2,board_view_3, board_view_4]
-		noise_scale = .1
+		view_positions = [board_view_1, board_view_2,board_view_3, board_view_4, board_view_1, board_view_2,board_view_3, board_view_4] 
+		noise_scale = .15
 
 		noise = np.random.rand(len(view_positions), len(view_positions[0])) * noise_scale 
 
@@ -701,7 +701,8 @@ if __name__ == "__main__":
 		rospy.sleep(1.0)
 		#board_object = chess.Board(fenstring)
 		print("made board")
-		#result = determine_best_move(board_object, computer_is_white)#chess.engine.SimpleEngine.popen_uci("/home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/src/chess_solver/src/nodes/stockfish/stockfish-ubuntu-x86-64-avx2")
+		#result = determine_best_move(board_object, computer_is_white)#
+		#chess.engine.SimpleEngine.popen_uci("/home/cc/ee106a/fa23/class/ee106a-aez/c106a-project/workspace/src/chess_solver/src/nodes/stockfish/stockfish-ubuntu-x86-64-avx2")
 		#result = engine.play(board)
 		import requests
 
@@ -725,11 +726,16 @@ if __name__ == "__main__":
 				else:
 					return "No optimal move found"
 			else:
-				return f"Error: {response.status_code}"
+				print(f"Error: {response.status_code}")
+				board_object = chess.Board(fenstring)
+				result = determine_best_move(board_object, computer_is_white)
+				return result
+				#TODO: alternative engine????
+
 
 		# Example usage
 		api_token = "lip_Kxj9cYtrOEjS9uDz2bPo"
-		result = get_optimal_move(fen_string, api_token)
+		result = get_optimal_move(fenstring, api_token)
 		best_move = str(result)
 		print("Best move:", best_move)
 
