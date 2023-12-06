@@ -378,11 +378,11 @@ class Controller:
 		angles1 = self.get_best_angles_from_target_position(target1, [0, 1, 0, 0], 20)
 		self.move(angles1, 0.1)
 
-		z_positions = np.linspace(z+0.25, z+offset_z, num=5)
+		z_positions = np.linspace(z+0.25, z+offset_z, num=10)
 		intermediate_angles = []
 		for z_pos in z_positions:
 			target_pos = [x1, y1, z_pos]
-			intermediate_angles.append(self.get_best_angles_from_target_position(target_pos, [0, 1, 0, 0], 1))
+			intermediate_angles.append(self.get_best_angles_from_target_position(target_pos, [0, 1, 0, 0], 7))
 		for angle in intermediate_angles:
 			self.move(angle)
 
@@ -437,11 +437,11 @@ class Controller:
 		angles3 = self.get_best_angles_from_target_position(target3, [0, 1, 0, 0], 20)
 		self.move(angles3, 0.1)
 
-		z_positions = np.linspace(z+0.25, z+offset_z, num=5)
+		z_positions = np.linspace(z+0.25, z+offset_z, num=10)
 		intermediate_angles = []
 		for z_pos in z_positions:
 			target_pos = [x2, y2, z_pos]
-			intermediate_angles.append(self.get_best_angles_from_target_position(target_pos, [0, 1, 0, 0], 1))
+			intermediate_angles.append(self.get_best_angles_from_target_position(target_pos, [0, 1, 0, 0], 7))
 		for angle in intermediate_angles:
 			self.move(angle)
 
@@ -575,7 +575,7 @@ if __name__ == "__main__":
 	noise = np.random.rand(len(view_positions), len(view_positions[0])) * noise_scale 
 
 	second_views = list(noise + np.array(view_positions))
-	#view_positions = view_positions + second_views
+	view_positions = view_positions + second_views
 
 
 
@@ -609,7 +609,7 @@ if __name__ == "__main__":
 		noise = np.random.rand(len(view_positions), len(view_positions[0])) * noise_scale 
 
 		second_views = list(noise + np.array(view_positions))
-		#view_positions = view_positions + second_views
+		view_positions = view_positions + second_views
 		for view_pos in view_positions: 
 			piece_position_tuples_from_based, num_times_scanned = move_and_scan(view_pos, piece_position_tuples_from_based, num_times_scanned, include_corners=False)
 
@@ -826,10 +826,10 @@ if __name__ == "__main__":
 
 		if piece_to_be_captured != "": 
 			print(f"The piece being captured is {piece_to_be_captured} and its location is {end_file}, {end_rank}")
-			control.move_piece_using_board_pos(end_file, end_rank, -1, -1, z+0.10795)
+			control.move_piece_using_board_pos(end_file, end_rank, -1, -1, z)#+0.10795)
 
 			### LOGIC TO REMOVE THIS PIECE
-		control.move_piece_using_board_pos(start_file, start_rank, end_file, end_rank, z+0.10795)
+		control.move_piece_using_board_pos(start_file, start_rank, end_file, end_rank, z)#+0.10795)
 		#control.move_piece(piece_to_be_moved, end_file, end_rank, start_pos=(start_pos_x,start_pos_y))
 		## Logiv to pick up piece and put it in the new position 
 		
