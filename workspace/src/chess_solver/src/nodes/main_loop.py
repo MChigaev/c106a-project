@@ -22,7 +22,7 @@ import rospy
 import baxter_interface
 import intera_interface
 from geometry_msgs.msg import PoseStamped
-from moveit_msgs.msg import RobotTrajectory
+from moveit_msgs.msg import RobotTrajectory, OrientationConstraint, Constraints
 from intera_interface import gripper as robot_gripper
 from intera_core_msgs.srv import SolvePositionIK, SolvePositionIKRequest
 from std_msgs.msg import Header
@@ -216,8 +216,9 @@ class Controller:
 		self.right_gripper.calibrate()
 		self.Buffer = tf2_ros.Buffer()
 		self.Listener = tf2_ros.TransformListener(self.Buffer)
+		#self.group = MoveGroupCommander("right_arm")
 		rospy.sleep(1.0)
-	def move(self, angles = [-0.026388671875, -1.3595009765625, -0.079771484375, 1.3575205078125, 0.0011318359375, 0.01973046875, 1.699166015625], max_speed_ratio=0.3):
+	def move(self, angles = [-0.026388671875, -1.3595009765625, -0.079771484375, 1.3575205078125, 0.0011318359375, 0.01973046875, 1.699166015625], max_speed_ratio=0.3, min_z=None):
 		self.traj = MotionTrajectory(limb = self.limb)
 		wpt_opts = MotionWaypointOptions(max_joint_speed_ratio=max_speed_ratio,
 											max_joint_accel=0.5)
@@ -377,13 +378,57 @@ class Controller:
 		angles1 = self.get_best_angles_from_target_position(target1, [0, 1, 0, 0], 20)
 		self.move(angles1, 0.1)
 
+		z_positions = np.linspace(z+0.25, z+offset_z, num=5)
+		intermediate_angles = []
+		for z_pos in z_positions:
+			target_pos = [x1, y1, z_pos]
+			intermediate_angles.append(self.get_best_angles_from_target_position(target_pos, [0, 1, 0, 0], 1))
+		for angle in intermediate_angles:
+			self.move(angle)
+
+
 		target2 = [x1, y1, z+offset_z]
 		angles2 = self.get_best_angles_from_target_position(target2, [0, 1, 0, 0], 20)
 		self.move(angles2, 0.1)
 		rospy.sleep(1.0)
+
+		# target2 = PoseStamped()
+		# header = Header(stamp=rospy.Time.now(), frame_id='base')
+		# target2.header = header
+		# target2.pose.position.x = x1
+		# target2.pose.position.y = y1
+		# target2.pose.position.z = z+offset_z
+
+		# target2.pose.orientation.x = 0
+		# target2.pose.orientation.y = 1 
+		# target2.pose.orientation.z = 0
+		# target2.pose.orientation.w = 0
+
+		# orien_const = OrientationConstraint()
+		# orien_const.link_name = "right_gripper";
+		# orien_const.header.frame_id = "base";
+		# orien_const.orientation.y = -1.0;
+		# orien_const.absolute_x_axis_tolerance = 0.1;
+		# orien_const.absolute_y_axis_tolerance = 0.1;
+		# orien_const.absolute_z_axis_tolerance = 0.1;
+		# orien_const.weight = 1.0;
+
+		# self.group.set_pose_target(target2)
+		# constraints = Constraints()
+		# constraints.orientation_constraints = [orien_const]
+		# self.group.set_path_constraints(constraints)
+
+		# plan = self.group.plan()
+		# self.group.execute(plan[1], True)
+		# print("Plan: {}".format(plan[0]))
+		# print(plan)
+
+		rospy.sleep(1.0)
 		self.close()
 
 		self.move(angles1, 0.1)
+
+
 
 		x2, y2 = get_square_position(end_file, end_rank)
 
@@ -391,6 +436,14 @@ class Controller:
 
 		angles3 = self.get_best_angles_from_target_position(target3, [0, 1, 0, 0], 20)
 		self.move(angles3, 0.1)
+
+		z_positions = np.linspace(z+0.25, z+offset_z, num=5)
+		intermediate_angles = []
+		for z_pos in z_positions:
+			target_pos = [x2, y2, z_pos]
+			intermediate_angles.append(self.get_best_angles_from_target_position(target_pos, [0, 1, 0, 0], 1))
+		for angle in intermediate_angles:
+			self.move(angle)
 
 		target4 = [x2, y2, z+offset_z]
 		angles4 = self.get_best_angles_from_target_position(target4, [0, 1, 0, 0], 20)
@@ -550,13 +603,13 @@ if __name__ == "__main__":
 			num_times_scanned[i] = 0
 			piece_position_tuples_from_based[i] = None
 
-		view_positions = [board_view_1, board_view_2,board_view_3, board_view_4, board_view_1, board_view_2,board_view_3, board_view_4] 
+		view_positions = [board_view_1, board_view_2,board_view_3, board_view_4] #, board_view_1, board_view_2,board_view_3, board_view_4] 
 		noise_scale = .15
 
 		noise = np.random.rand(len(view_positions), len(view_positions[0])) * noise_scale 
 
 		second_views = list(noise + np.array(view_positions))
-		view_positions = view_positions + second_views
+		#view_positions = view_positions + second_views
 		for view_pos in view_positions: 
 			piece_position_tuples_from_based, num_times_scanned = move_and_scan(view_pos, piece_position_tuples_from_based, num_times_scanned, include_corners=False)
 
